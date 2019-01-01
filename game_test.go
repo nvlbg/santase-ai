@@ -420,3 +420,73 @@ func TestUpdateDrawnCardInvalidSituations(t *testing.T) {
 		)
 	})
 }
+
+func TestHelperFunctions(t *testing.T) {
+	t.Run("strongerCard", func(t *testing.T) {
+		a := NewCard(Ace, Spades)
+		b := NewCard(Ten, Spades)
+		c := NewCard(King, Hearts)
+		d := NewCard(King, Diamonds)
+
+		assert.Equal(t, &a, strongerCard(&a, &b, Spades))
+		assert.Equal(t, &a, strongerCard(&b, &a, Spades))
+
+		assert.Equal(t, &a, strongerCard(&a, &b, Hearts))
+		assert.Equal(t, &a, strongerCard(&b, &a, Hearts))
+
+		assert.Equal(t, &c, strongerCard(&a, &c, Hearts))
+		assert.Equal(t, &c, strongerCard(&c, &a, Hearts))
+
+		assert.Equal(t, &a, strongerCard(&a, &d, Hearts))
+		assert.Equal(t, &d, strongerCard(&d, &a, Hearts))
+	})
+
+	t.Run("points", func(t *testing.T) {
+		nine := NewCard(Nine, Hearts)
+		jack := NewCard(Jack, Hearts)
+		queen := NewCard(Queen, Hearts)
+		king := NewCard(King, Hearts)
+		ten := NewCard(Ten, Hearts)
+		ace := NewCard(Ace, Hearts)
+
+		assert.Equal(t, 0, points(&nine))
+		assert.Equal(t, 2, points(&jack))
+		assert.Equal(t, 3, points(&queen))
+		assert.Equal(t, 4, points(&king))
+		assert.Equal(t, 10, points(&ten))
+		assert.Equal(t, 11, points(&ace))
+	})
+
+	t.Run("getRemainingCards", func(t *testing.T) {
+		hand := NewHand()
+		hand.AddCard(NewCard(Nine, Diamonds))
+		hand.AddCard(NewCard(King, Spades))
+		hand.AddCard(NewCard(Queen, Diamonds))
+		hand.AddCard(NewCard(Nine, Spades))
+		hand.AddCard(NewCard(Ace, Spades))
+		hand.AddCard(NewCard(Ten, Hearts))
+
+		seenCards := make(map[Card]struct{})
+		seenCards[NewCard(Nine, Clubs)] = struct{}{}
+		seenCards[NewCard(Jack, Spades)] = struct{}{}
+		seenCards[NewCard(Queen, Clubs)] = struct{}{}
+		seenCards[NewCard(King, Diamonds)] = struct{}{}
+		seenCards[NewCard(Ten, Diamonds)] = struct{}{}
+		seenCards[NewCard(Jack, Clubs)] = struct{}{}
+		seenCards[NewCard(Ace, Hearts)] = struct{}{}
+		seenCards[NewCard(Nine, Hearts)] = struct{}{}
+		seenCards[NewCard(Ten, Clubs)] = struct{}{}
+		seenCards[NewCard(Jack, Diamonds)] = struct{}{}
+		seenCards[NewCard(King, Clubs)] = struct{}{}
+		seenCards[NewCard(Queen, Spades)] = struct{}{}
+
+		remaining := getRemainingCards(hand, seenCards)
+		assert.Equal(t, 6, len(remaining))
+		assert.True(t, remaining.HasCard(NewCard(Jack, Hearts)))
+		assert.True(t, remaining.HasCard(NewCard(Ace, Clubs)))
+		assert.True(t, remaining.HasCard(NewCard(Ace, Diamonds)))
+		assert.True(t, remaining.HasCard(NewCard(Queen, Hearts)))
+		assert.True(t, remaining.HasCard(NewCard(Ten, Spades)))
+		assert.True(t, remaining.HasCard(NewCard(King, Hearts)))
+	})
+}
