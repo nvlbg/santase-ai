@@ -298,6 +298,10 @@ func (g *Game) UpdateOpponentMove(opponentMove Move) {
 			panic("cannot announce when you're not first to play")
 		}
 
+		if len(g.seenCards) == 0 {
+			panic("cannot announce on first move")
+		}
+
 		var other Card
 		if opponentMove.Card.Rank == Queen {
 			other = NewCard(King, opponentMove.Card.Suit)
@@ -309,7 +313,7 @@ func (g *Game) UpdateOpponentMove(opponentMove Move) {
 			panic("cannot be an announcement because other card has already been played")
 		}
 
-		if _, ok := g.hand[opponentMove.Card]; ok {
+		if _, ok := g.hand[other]; ok {
 			panic("cannot be an announcement because other card is in ai's hand")
 		}
 
