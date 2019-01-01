@@ -145,60 +145,6 @@ func NewMoveWithAnnouncementAndTrumpCardSwitch(card Card) Move {
 	}
 }
 
-type Game struct {
-	score              int
-	opponentScore      int
-	seenCards          map[Card]struct{}
-	knownOpponentCards Hand
-	trump              Suit
-	hand               Hand
-	trumpCard          Card
-	isOpponentMove     bool
-	cardPlayed         *Card
-}
-
-func CreateGame(hand Hand, trumpCard Card, isOpponentMove bool) Game {
-	if len(hand) != 6 {
-		panic("player's hand is not complete")
-	}
-
-	return Game{
-		score:              0,
-		opponentScore:      0,
-		seenCards:          make(map[Card]struct{}),
-		knownOpponentCards: NewHand(),
-		trump:              trumpCard.Suit,
-		hand:               hand,
-		trumpCard:          trumpCard,
-		isOpponentMove:     isOpponentMove,
-		cardPlayed:         nil,
-	}
-}
-
-func (g *Game) GetMove() Move {
-	if g.isOpponentMove {
-		panic("not AI's turn")
-	}
-
-	if len(g.seenCards) >= 12 {
-		// use alpha beta pruning
-	} else {
-		// use ismcts
-	}
-
-	// TODO
-
-	// playedCard := g.hand[0]
-	// newHand := g.hand[1:]
-	// g.hand = newHand
-
-	return Move{
-		Card:            NewCard(Ace, Spades),
-		IsAnnouncement:  false,
-		SwitchTrumpCard: false,
-	}
-}
-
 func strongerCard(a *Card, b *Card, trump Suit) *Card {
 	if a.Suit == b.Suit {
 		if a.Rank > b.Rank {
@@ -233,6 +179,103 @@ func points(c *Card) int {
 	}
 
 	panic("invalid card")
+}
+
+func getRemainingCards(hand Hand, seenCards map[Card]struct{}) Hand {
+	remaining := NewHand()
+	for _, card := range allCards {
+		isInHand := hand.HasCard(card)
+		_, isSeen := seenCards[card]
+		if !isInHand && !isSeen {
+			remaining.AddCard(card)
+		}
+	}
+	return remaining
+}
+
+type Game struct {
+	score              int
+	opponentScore      int
+	seenCards          map[Card]struct{}
+	knownOpponentCards Hand
+	trump              Suit
+	hand               Hand
+	trumpCard          Card
+	isOpponentMove     bool
+	cardPlayed         *Card
+}
+
+func CreateGame(hand Hand, trumpCard Card, isOpponentMove bool) Game {
+	if len(hand) != 6 {
+		panic("player's hand is not complete")
+	}
+
+	return Game{
+		score:              0,
+		opponentScore:      0,
+		seenCards:          make(map[Card]struct{}),
+		knownOpponentCards: NewHand(),
+		trump:              trumpCard.Suit,
+		hand:               hand,
+		trumpCard:          trumpCard,
+		isOpponentMove:     isOpponentMove,
+		cardPlayed:         nil,
+	}
+}
+
+func (g *Game) getMove() Move {
+	return Move{
+		Card:            NewCard(Ace, Spades),
+		IsAnnouncement:  false,
+		SwitchTrumpCard: false,
+	}
+}
+
+func (g *Game) GetMove() Move {
+	if g.isOpponentMove {
+		panic("not AI's turn")
+	}
+
+	if g.cardPlayed == nil && len(g.seenCards) <= 12 && len(g.hand) != 6 {
+		panic("should not play before drawing cards")
+	}
+
+	move := g.getMove()
+
+	if move.SwitchTrumpCard {
+		g.hand.RemoveCard(NewCard(Nine, g.trump))
+		g.hand.AddCard(g.trumpCard)
+		g.trumpCard.Rank = Nine
+	}
+
+	if move.IsAnnouncement {
+		if move.Card.Suit == g.trump {
+			g.score += 40
+		} else {
+			g.score += 20
+		}
+	}
+
+	g.hand.RemoveCard(move.Card)
+
+	if g.cardPlayed == nil {
+		g.cardPlayed = &move.Card
+		g.isOpponentMove = true
+	} else {
+		stronger := strongerCard(g.cardPlayed, &move.Card, g.trump)
+		if g.cardPlayed == stronger {
+			g.score += points(g.cardPlayed) + points(&move.Card)
+			g.isOpponentMove = true
+		} else {
+			g.opponentScore += points(g.cardPlayed) + points(&move.Card)
+			g.isOpponentMove = false
+		}
+		g.seenCards[*g.cardPlayed] = struct{}{}
+		g.seenCards[move.Card] = struct{}{}
+		g.cardPlayed = nil
+	}
+
+	return move
 }
 
 func (g *Game) UpdateOpponentMove(opponentMove Move) {
@@ -348,18 +391,6 @@ func (g *Game) UpdateOpponentMove(opponentMove Move) {
 		g.seenCards[opponentMove.Card] = struct{}{}
 		g.cardPlayed = nil
 	}
-}
-
-func getRemainingCards(hand Hand, seenCards map[Card]struct{}) Hand {
-	remaining := NewHand()
-	for _, card := range allCards {
-		isInHand := hand.HasCard(card)
-		_, isSeen := seenCards[card]
-		if !isInHand && !isSeen {
-			remaining.AddCard(card)
-		}
-	}
-	return remaining
 }
 
 func (g *Game) UpdateDrawnCard(card Card) {
