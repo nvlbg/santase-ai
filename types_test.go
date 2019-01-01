@@ -1,6 +1,7 @@
 package santase
 
 import (
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -15,12 +16,6 @@ func TestNewHand(t *testing.T) {
 }
 
 func TestNewHandOverfilling(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("code did not panic")
-		}
-	}()
-
 	hand := NewHand()
 	hand.AddCard(NewCard(Nine, Hearts))
 	hand.AddCard(NewCard(Jack, Hearts))
@@ -29,20 +24,37 @@ func TestNewHandOverfilling(t *testing.T) {
 	hand.AddCard(NewCard(Ten, Hearts))
 	hand.AddCard(NewCard(Ace, Hearts))
 
-	// adding 7th card panics
-	hand.AddCard(NewCard(Ace, Spades))
+	assert.PanicsWithValue(
+		t, "hand has 6 cards already",
+		func() { hand.AddCard(NewCard(Ace, Spades)) },
+	)
 }
 
 func TestNewHandAddingSameCardTwice(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("code did not panic")
-		}
-	}()
-
 	hand := NewHand()
 	hand.AddCard(NewCard(Nine, Hearts))
+
+	assert.PanicsWithValue(
+		t, "9♥ is already in the hand",
+		func() { hand.AddCard(NewCard(Nine, Hearts)) },
+	)
+}
+
+func TestHasCard(t *testing.T) {
+	hand := NewHand()
 	hand.AddCard(NewCard(Nine, Hearts))
+
+	assert.False(t, hand.HasCard(NewCard(Ten, Hearts)))
+	assert.True(t, hand.HasCard(NewCard(Nine, Hearts)))
+}
+
+func TestRemoveCard(t *testing.T) {
+	hand := NewHand()
+	hand.AddCard(NewCard(Nine, Hearts))
+
+	assert.True(t, hand.HasCard(NewCard(Nine, Hearts)))
+	hand.RemoveCard(NewCard(Nine, Hearts))
+	assert.False(t, hand.HasCard(NewCard(Nine, Hearts)))
 }
 
 func TestNewMove(t *testing.T) {
@@ -56,13 +68,10 @@ func TestNewMoveWithAnnouncement(t *testing.T) {
 }
 
 func TestNewMoveWithAnnouncementImpossibleAnnouncement(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("code did not panic")
-		}
-	}()
-
-	NewMoveWithAnnouncement(NewCard(Nine, Clubs))
+	assert.PanicsWithValue(
+		t, "announcement moves are only possible with queens and kings",
+		func() { NewMoveWithAnnouncement(NewCard(Nine, Clubs)) },
+	)
 }
 
 func TestNewMoveWithTrumpCardSwitch(t *testing.T) {
@@ -76,11 +85,9 @@ func TestNewMoveWithAnnouncementAndTrumpCardSwitch(t *testing.T) {
 }
 
 func TestNewMoveWithAnnouncementAndTrumpCardSwitchImpossibleAnnouncement(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("code did not panic")
-		}
-	}()
+	assert.PanicsWithValue(
+		t, "announcement moves are only possible with queens and kings",
+		func() { NewMoveWithAnnouncementAndTrumpCardSwitch(NewCard(Ten, Hearts)) },
+	)
 
-	NewMoveWithAnnouncementAndTrumpCardSwitch(NewCard(Ten, Hearts))
 }

@@ -1,6 +1,7 @@
 package santase
 
 import (
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -20,15 +21,12 @@ func TestNewGame(t *testing.T) {
 }
 
 func TestNewGameIncompleteHand(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("code did not panic")
-		}
-	}()
-
 	hand := NewHand()
 	trumpCard := NewCard(Ace, Spades)
-	CreateGame(hand, trumpCard, false)
+	assert.PanicsWithValue(
+		t, "player's hand is not complete",
+		func() { CreateGame(hand, trumpCard, false) },
+	)
 }
 
 func createInitialHand() Hand {
@@ -52,32 +50,28 @@ func TestUpdateOpponentMove(t *testing.T) {
 }
 
 func TestUpdateOpponentMoveWrongTurn(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("code did not panic")
-		}
-	}()
-
 	hand := createInitialHand()
 	trumpCard := NewCard(Ten, Clubs)
 	game := CreateGame(hand, trumpCard, false)
 
 	opponentMove := NewMove(NewCard(Ace, Diamonds))
-	game.UpdateOpponentMove(opponentMove)
+
+	assert.PanicsWithValue(
+		t, "not opponent's turn",
+		func() { game.UpdateOpponentMove(opponentMove) },
+	)
 }
 
 func TestUpdateOpponentMoveWithCardInOurHand(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("code did not panic")
-		}
-	}()
-
 	hand := createInitialHand()
 	trumpCard := NewCard(Ten, Clubs)
 	game := CreateGame(hand, trumpCard, true)
 
 	// played card is in ai's hand
 	opponentMove := NewMove(NewCard(Nine, Diamonds))
-	game.UpdateOpponentMove(opponentMove)
+
+	assert.PanicsWithValue(
+		t, "card is in ai's hand",
+		func() { game.UpdateOpponentMove(opponentMove) },
+	)
 }
