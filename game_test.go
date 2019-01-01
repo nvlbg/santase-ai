@@ -330,3 +330,93 @@ func TestUpdateOpponentMoveEdgeCaseSituations(t *testing.T) {
 	// playing trump card after switching it + announcing
 	// playing trump card after drawing it
 }
+
+func TestUpdateDrawnCardInvalidSituations(t *testing.T) {
+	t.Run("in the middle of a play", func(t *testing.T) {
+		game := createSampleGame()
+
+		// simulate if ai has played first move
+		card := NewCard(Ace, Spades)
+		game.cardPlayed = &card
+		game.hand.RemoveCard(card)
+
+		assert.PanicsWithValue(
+			t, "cannot draw cards in the middle of a play",
+			func() { game.UpdateDrawnCard(NewCard(Jack, Hearts)) },
+		)
+	})
+
+	t.Run("before first move", func(t *testing.T) {
+		game := createSampleGame()
+
+		assert.PanicsWithValue(
+			t, "should not draw cards before the first play",
+			func() { game.UpdateDrawnCard(NewCard(Jack, Hearts)) },
+		)
+	})
+
+	t.Run("drawing twice in a row", func(t *testing.T) {
+		game := createSampleGame()
+
+		// simulating playing one hand
+		game.seenCards[NewCard(King, Spades)] = struct{}{}
+		game.seenCards[NewCard(Ten, Spades)] = struct{}{}
+		game.hand.RemoveCard(NewCard(King, Spades))
+		game.opponentScore = 14
+		game.UpdateDrawnCard(NewCard(Jack, Hearts))
+
+		assert.PanicsWithValue(
+			t, "should not draw cards twice before playing",
+			func() { game.UpdateDrawnCard(NewCard(Nine, Hearts)) },
+		)
+	})
+
+	t.Run("drawing seen card", func(t *testing.T) {
+		game := createSampleGame()
+
+		// simulating playing one hand
+		game.seenCards[NewCard(King, Spades)] = struct{}{}
+		game.seenCards[NewCard(Ten, Spades)] = struct{}{}
+		game.hand.RemoveCard(NewCard(King, Spades))
+		game.opponentScore = 14
+
+		assert.PanicsWithValue(
+			t, "drawn card has been played before",
+			func() { game.UpdateDrawnCard(NewCard(Ten, Spades)) },
+		)
+	})
+
+	t.Run("drawing card in ai's hand", func(t *testing.T) {
+		game := createSampleGame()
+
+		// simulating playing one hand
+		game.seenCards[NewCard(King, Spades)] = struct{}{}
+		game.seenCards[NewCard(Ten, Spades)] = struct{}{}
+		game.hand.RemoveCard(NewCard(King, Spades))
+		game.opponentScore = 14
+
+		assert.PanicsWithValue(
+			t, "cannot draw card that is in the hand already",
+			func() { game.UpdateDrawnCard(NewCard(Ace, Spades)) },
+		)
+	})
+
+	t.Run("drawing card in opponent's hand", func(t *testing.T) {
+		// TODO
+	})
+
+	t.Run("drawing trump card", func(t *testing.T) {
+		game := createSampleGame()
+
+		// simulating playing one hand
+		game.seenCards[NewCard(King, Spades)] = struct{}{}
+		game.seenCards[NewCard(Ten, Spades)] = struct{}{}
+		game.hand.RemoveCard(NewCard(King, Spades))
+		game.opponentScore = 14
+
+		assert.PanicsWithValue(
+			t, "cannot draw trump card yet",
+			func() { game.UpdateDrawnCard(game.trumpCard) },
+		)
+	})
+}
