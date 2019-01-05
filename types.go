@@ -87,10 +87,6 @@ func (h *Hand) AddCard(c Card) {
 		panic("hand has 6 cards already")
 	}
 
-	if _, ok := (*h)[c]; ok {
-		panic(c.String() + " is already in the hand")
-	}
-
 	(*h)[c] = struct{}{}
 }
 
@@ -101,6 +97,25 @@ func (h *Hand) HasCard(c Card) bool {
 
 func (h *Hand) RemoveCard(c Card) {
 	delete(*h, c)
+}
+
+type Pile map[Card]struct{}
+
+func NewPile() Pile {
+	return make(map[Card]struct{})
+}
+
+func (p *Pile) AddCard(c Card) {
+	(*p)[c] = struct{}{}
+}
+
+func (p *Pile) HasCard(c Card) bool {
+	_, ok := (*p)[c]
+	return ok
+}
+
+func (p *Pile) RemoveCard(c Card) {
+	delete(*p, c)
 }
 
 type Move struct {
@@ -181,12 +196,12 @@ func points(c *Card) int {
 	panic("invalid card")
 }
 
-func getRemainingCards(hand Hand, seenCards map[Card]struct{}) Hand {
-	remaining := NewHand()
+func getHiddenCards(hand Hand, trumpCard Card) Pile {
+	remaining := NewPile()
 	for _, card := range allCards {
 		isInHand := hand.HasCard(card)
-		_, isSeen := seenCards[card]
-		if !isInHand && !isSeen {
+		isTrumpCard := card == trumpCard
+		if !isInHand && !isTrumpCard {
 			remaining.AddCard(card)
 		}
 	}
@@ -194,15 +209,16 @@ func getRemainingCards(hand Hand, seenCards map[Card]struct{}) Hand {
 }
 
 type Game struct {
+	trump              Suit
 	score              int
 	opponentScore      int
-	seenCards          map[Card]struct{}
-	knownOpponentCards Hand
-	trump              Suit
 	hand               Hand
-	trumpCard          Card
-	isOpponentMove     bool
+	knownOpponentCards Hand
+	seenCards          Pile
+	unseenCards        Pile
+	trumpCard          *Card
 	cardPlayed         *Card
+	isOpponentMove     bool
 }
 
 func CreateGame(hand Hand, trumpCard Card, isOpponentMove bool) Game {
@@ -211,15 +227,16 @@ func CreateGame(hand Hand, trumpCard Card, isOpponentMove bool) Game {
 	}
 
 	return Game{
+		trump:              trumpCard.Suit,
 		score:              0,
 		opponentScore:      0,
-		seenCards:          make(map[Card]struct{}),
-		knownOpponentCards: NewHand(),
-		trump:              trumpCard.Suit,
 		hand:               hand,
-		trumpCard:          trumpCard,
-		isOpponentMove:     isOpponentMove,
+		knownOpponentCards: NewHand(),
+		seenCards:          NewPile(),
+		unseenCards:        getHiddenCards(hand, trumpCard),
+		trumpCard:          &trumpCard,
 		cardPlayed:         nil,
+		isOpponentMove:     isOpponentMove,
 	}
 }
 
@@ -244,7 +261,7 @@ func (g *Game) GetMove() Move {
 
 	if move.SwitchTrumpCard {
 		g.hand.RemoveCard(NewCard(Nine, g.trump))
-		g.hand.AddCard(g.trumpCard)
+		g.hand.AddCard(*g.trumpCard)
 		g.trumpCard.Rank = Nine
 	}
 
@@ -270,8 +287,8 @@ func (g *Game) GetMove() Move {
 			g.opponentScore += points(g.cardPlayed) + points(&move.Card)
 			g.isOpponentMove = false
 		}
-		g.seenCards[*g.cardPlayed] = struct{}{}
-		g.seenCards[move.Card] = struct{}{}
+		g.seenCards.AddCard(*g.cardPlayed)
+		g.seenCards.AddCard(move.Card)
 		g.cardPlayed = nil
 	}
 
@@ -283,11 +300,11 @@ func (g *Game) UpdateOpponentMove(opponentMove Move) {
 		panic("not opponent's turn")
 	}
 
-	if _, ok := g.seenCards[opponentMove.Card]; ok {
+	if g.seenCards.HasCard(opponentMove.Card) {
 		panic("card has already been played")
 	}
 
-	if _, ok := g.hand[opponentMove.Card]; ok {
+	if g.hand.HasCard(opponentMove.Card) {
 		panic("card is in ai's hand")
 	}
 
@@ -312,7 +329,7 @@ func (g *Game) UpdateOpponentMove(opponentMove Move) {
 			panic("cannot switch trump card with only two cards left in the stack")
 		}
 
-		if len(g.seenCards) >= 12 {
+		if g.trumpCard == nil {
 			panic("cannot switch trump card after it has been taken")
 		}
 
@@ -320,21 +337,17 @@ func (g *Game) UpdateOpponentMove(opponentMove Move) {
 			panic("cannot switch trump card - trump card is a nine")
 		}
 
-		g.knownOpponentCards.AddCard(g.trumpCard)
+		g.knownOpponentCards.AddCard(*g.trumpCard)
 		g.trumpCard.Rank = Nine
-
-		if g.knownOpponentCards.HasCard(g.trumpCard) {
-			g.knownOpponentCards.RemoveCard(g.trumpCard)
-		}
+		g.knownOpponentCards.RemoveCard(*g.trumpCard)
+		g.unseenCards.RemoveCard(*g.trumpCard)
 	}
 
-	if opponentMove.Card == g.trumpCard && len(g.seenCards) < 12 {
+	if g.trumpCard != nil && opponentMove.Card == *g.trumpCard {
 		panic("played card is the trump card")
 	}
 
-	if g.knownOpponentCards.HasCard(opponentMove.Card) {
-		g.knownOpponentCards.RemoveCard(opponentMove.Card)
-	}
+	g.knownOpponentCards.RemoveCard(opponentMove.Card)
 
 	if opponentMove.IsAnnouncement {
 		if g.cardPlayed != nil {
@@ -352,15 +365,15 @@ func (g *Game) UpdateOpponentMove(opponentMove Move) {
 			other = NewCard(Queen, opponentMove.Card.Suit)
 		}
 
-		if _, ok := g.seenCards[other]; ok {
+		if g.seenCards.HasCard(other) {
 			panic("cannot be an announcement because other card has already been played")
 		}
 
-		if _, ok := g.hand[other]; ok {
+		if g.hand.HasCard(other) {
 			panic("cannot be an announcement because other card is in ai's hand")
 		}
 
-		if other == g.trumpCard && len(g.seenCards) < 12 {
+		if g.trumpCard != nil && other == *g.trumpCard {
 			panic("cannot be an announcement because other card is the trump card")
 		}
 
@@ -370,10 +383,11 @@ func (g *Game) UpdateOpponentMove(opponentMove Move) {
 			g.opponentScore += 20
 		}
 
-		if !g.knownOpponentCards.HasCard(other) {
-			g.knownOpponentCards.AddCard(other)
-		}
+		g.knownOpponentCards.AddCard(other)
+		g.unseenCards.RemoveCard(other)
 	}
+
+	g.unseenCards.RemoveCard(opponentMove.Card)
 
 	if g.cardPlayed == nil {
 		g.cardPlayed = &opponentMove.Card
@@ -387,8 +401,8 @@ func (g *Game) UpdateOpponentMove(opponentMove Move) {
 			g.opponentScore += points(g.cardPlayed) + points(&opponentMove.Card)
 			g.isOpponentMove = true
 		}
-		g.seenCards[*g.cardPlayed] = struct{}{}
-		g.seenCards[opponentMove.Card] = struct{}{}
+		g.seenCards.AddCard(*g.cardPlayed)
+		g.seenCards.AddCard(opponentMove.Card)
 		g.cardPlayed = nil
 	}
 }
@@ -406,7 +420,7 @@ func (g *Game) UpdateDrawnCard(card Card) {
 		}
 	}
 
-	if _, ok := g.seenCards[card]; ok {
+	if g.seenCards.HasCard(card) {
 		panic("drawn card has been played before")
 	}
 
@@ -418,13 +432,21 @@ func (g *Game) UpdateDrawnCard(card Card) {
 		panic("cannot draw card that is in the hand already")
 	}
 
-	if g.trumpCard == card && len(g.seenCards) < 10 {
+	if g.trumpCard == nil {
+		panic("all cards are drawn already")
+	}
+
+	if *g.trumpCard == card && len(g.seenCards) < 10 {
 		panic("cannot draw trump card yet")
 	}
 
 	g.hand.AddCard(card)
+	g.unseenCards.RemoveCard(card)
 
 	if len(g.seenCards) == 12 {
-		g.knownOpponentCards = getRemainingCards(g.hand, g.seenCards)
+		for card := range g.unseenCards {
+			g.knownOpponentCards.AddCard(card)
+		}
+		g.unseenCards = NewPile()
 	}
 }

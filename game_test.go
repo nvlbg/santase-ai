@@ -46,15 +46,25 @@ func createSampleGame() Game {
 	return CreateGame(hand, trumpCard, true)
 }
 
+func createSampleGameWithTrumpCard(trumpCard Card) Game {
+	hand := createSampleHand()
+	return CreateGame(hand, trumpCard, true)
+}
+
 func TestUpdateOpponentMove(t *testing.T) {
 	game := createSampleGame()
 
 	card := NewCard(Ace, Diamonds)
 	opponentMove := NewMove(card)
+
+	assert.Nil(t, game.cardPlayed)
+	assert.True(t, game.unseenCards.HasCard(card))
+
 	game.UpdateOpponentMove(opponentMove)
 
 	assert.Equal(t, card, *game.cardPlayed)
 	assert.False(t, game.isOpponentMove)
+	assert.False(t, game.unseenCards.HasCard(card))
 }
 
 func TestUpdateOpponentMoveInferingOpponentCards(t *testing.T) {
@@ -62,52 +72,66 @@ func TestUpdateOpponentMoveInferingOpponentCards(t *testing.T) {
 		game := createSampleGame()
 
 		// simulate if one hand has been played already
-		game.seenCards[NewCard(Queen, Diamonds)] = struct{}{}
-		game.seenCards[NewCard(Ace, Diamonds)] = struct{}{}
+		game.seenCards.AddCard(NewCard(Queen, Diamonds))
+		game.unseenCards.RemoveCard(NewCard(Queen, Diamonds))
+		game.seenCards.AddCard(NewCard(Ace, Diamonds))
+		game.unseenCards.RemoveCard(NewCard(Ace, Diamonds))
 		game.hand.RemoveCard(NewCard(Queen, Diamonds))
 		game.opponentScore = 14
-		game.UpdateDrawnCard(NewCard(Jack, Hearts))
+		game.hand.AddCard(NewCard(Jack, Hearts))
+		game.unseenCards.RemoveCard(NewCard(Jack, Hearts))
 
 		assert.False(t, game.knownOpponentCards.HasCard(NewCard(King, Hearts)))
+		assert.True(t, game.unseenCards.HasCard(NewCard(King, Hearts)))
 		opponentMove := NewMoveWithAnnouncement(NewCard(Queen, Hearts))
 		game.UpdateOpponentMove(opponentMove)
 		assert.True(t, game.knownOpponentCards.HasCard(NewCard(King, Hearts)))
+		assert.False(t, game.unseenCards.HasCard(NewCard(King, Hearts)))
 	})
 
 	t.Run("after switching trump card", func(t *testing.T) {
 		game := createSampleGame()
 
 		// simulate if one hand has been played already
-		game.seenCards[NewCard(Queen, Diamonds)] = struct{}{}
-		game.seenCards[NewCard(Ace, Diamonds)] = struct{}{}
+		game.seenCards.AddCard(NewCard(Queen, Diamonds))
+		game.unseenCards.RemoveCard(NewCard(Queen, Diamonds))
+		game.seenCards.AddCard(NewCard(Ace, Diamonds))
+		game.unseenCards.RemoveCard(NewCard(Ace, Diamonds))
 		game.hand.RemoveCard(NewCard(Queen, Diamonds))
 		game.opponentScore = 14
-		game.UpdateDrawnCard(NewCard(Jack, Hearts))
+		game.hand.AddCard(NewCard(Jack, Hearts))
+		game.unseenCards.RemoveCard(NewCard(Jack, Hearts))
 
-		originalTrumpCard := game.trumpCard
+		originalTrumpCard := *game.trumpCard
 		assert.False(t, game.knownOpponentCards.HasCard(originalTrumpCard))
 		opponentMove := NewMoveWithTrumpCardSwitch(NewCard(Queen, Hearts))
 		game.UpdateOpponentMove(opponentMove)
 		assert.True(t, game.knownOpponentCards.HasCard(originalTrumpCard))
+		assert.False(t, game.unseenCards.HasCard(originalTrumpCard))
 	})
 
 	t.Run("after switching trump card and announcing", func(t *testing.T) {
 		game := createSampleGame()
 
 		// simulate if one hand has been played already
-		game.seenCards[NewCard(Queen, Diamonds)] = struct{}{}
-		game.seenCards[NewCard(Ace, Diamonds)] = struct{}{}
+		game.seenCards.AddCard(NewCard(Queen, Diamonds))
+		game.unseenCards.RemoveCard(NewCard(Queen, Diamonds))
+		game.seenCards.AddCard(NewCard(Ace, Diamonds))
+		game.unseenCards.RemoveCard(NewCard(Ace, Diamonds))
 		game.hand.RemoveCard(NewCard(Queen, Diamonds))
 		game.opponentScore = 14
-		game.UpdateDrawnCard(NewCard(Jack, Hearts))
+		game.hand.AddCard(NewCard(Jack, Hearts))
+		game.unseenCards.RemoveCard(NewCard(Jack, Hearts))
 
-		originalTrumpCard := game.trumpCard
+		originalTrumpCard := *game.trumpCard
 		assert.False(t, game.knownOpponentCards.HasCard(originalTrumpCard))
 		assert.False(t, game.knownOpponentCards.HasCard(NewCard(King, Hearts)))
+		assert.True(t, game.unseenCards.HasCard(NewCard(King, Hearts)))
 		opponentMove := NewMoveWithAnnouncementAndTrumpCardSwitch(NewCard(Queen, Hearts))
 		game.UpdateOpponentMove(opponentMove)
 		assert.True(t, game.knownOpponentCards.HasCard(originalTrumpCard))
 		assert.True(t, game.knownOpponentCards.HasCard(NewCard(King, Hearts)))
+		assert.False(t, game.unseenCards.HasCard(NewCard(King, Hearts)))
 	})
 
 	t.Run("after drawing all cards", func(t *testing.T) {
@@ -133,8 +157,10 @@ func TestUpdateOpponentMoveInvalidSituations(t *testing.T) {
 		game := createSampleGame()
 
 		// simulate if one hand has been played already
-		game.seenCards[NewCard(Queen, Diamonds)] = struct{}{}
-		game.seenCards[card] = struct{}{}
+		game.seenCards.AddCard(NewCard(Queen, Diamonds))
+		game.unseenCards.RemoveCard(NewCard(Queen, Diamonds))
+		game.seenCards.AddCard(card)
+		game.unseenCards.RemoveCard(card)
 		game.hand.RemoveCard(NewCard(Queen, Diamonds))
 		game.opponentScore = 14
 
@@ -173,8 +199,10 @@ func TestUpdateOpponentMoveInvalidSituations(t *testing.T) {
 		game := createSampleGame()
 
 		// simulating playing one hand
-		game.seenCards[NewCard(King, Spades)] = struct{}{}
-		game.seenCards[NewCard(Ten, Spades)] = struct{}{}
+		game.seenCards.AddCard(NewCard(King, Spades))
+		game.unseenCards.RemoveCard(NewCard(King, Spades))
+		game.seenCards.AddCard(NewCard(Ten, Spades))
+		game.unseenCards.RemoveCard(NewCard(Ten, Spades))
 		game.hand.RemoveCard(NewCard(King, Spades))
 		game.opponentScore = 14
 
@@ -186,7 +214,7 @@ func TestUpdateOpponentMoveInvalidSituations(t *testing.T) {
 
 	t.Run("playing trump card", func(t *testing.T) {
 		game := createSampleGame()
-		opponentMove := NewMove(game.trumpCard)
+		opponentMove := NewMove(*game.trumpCard)
 
 		assert.PanicsWithValue(
 			t, "played card is the trump card",
@@ -228,16 +256,17 @@ func TestUpdateOpponentMoveInvalidSituations(t *testing.T) {
 	})
 
 	t.Run("switching trump card with rank nine", func(t *testing.T) {
-		game := createSampleGame()
-		game.trumpCard.Rank = Nine
+		game := createSampleGameWithTrumpCard(NewCard(Nine, Clubs))
 		opponentMove := NewMoveWithTrumpCardSwitch(opponentMove.Card)
 
 		// simulating playing one hand
-		game.seenCards[NewCard(King, Spades)] = struct{}{}
-		game.seenCards[NewCard(Ten, Spades)] = struct{}{}
+		game.seenCards.AddCard(NewCard(King, Spades))
+		game.unseenCards.RemoveCard(NewCard(King, Spades))
+		game.seenCards.AddCard(NewCard(Ten, Spades))
+		game.unseenCards.RemoveCard(NewCard(Ten, Spades))
 		game.hand.RemoveCard(NewCard(King, Spades))
 		game.opponentScore = 14
-		game.UpdateDrawnCard(NewCard(Jack, Hearts))
+		game.hand.AddCard(NewCard(Jack, Hearts))
 
 		assert.PanicsWithValue(
 			t, "cannot switch trump card - trump card is a nine",
@@ -265,11 +294,13 @@ func TestUpdateOpponentMoveInvalidSituations(t *testing.T) {
 		game := createSampleGame()
 
 		// simulating playing one hand
-		game.seenCards[NewCard(King, Spades)] = struct{}{}
-		game.seenCards[NewCard(Ten, Spades)] = struct{}{}
+		game.seenCards.AddCard(NewCard(King, Spades))
+		game.unseenCards.RemoveCard(NewCard(King, Spades))
+		game.seenCards.AddCard(NewCard(Ten, Spades))
+		game.unseenCards.RemoveCard(NewCard(Ten, Spades))
 		game.hand.RemoveCard(NewCard(King, Spades))
 		game.opponentScore = 14
-		game.UpdateDrawnCard(NewCard(Jack, Hearts))
+		game.hand.AddCard(NewCard(Jack, Hearts))
 
 		opponentMove := NewMoveWithAnnouncement(NewCard(Queen, Spades))
 		assert.PanicsWithValue(
@@ -292,11 +323,13 @@ func TestUpdateOpponentMoveInvalidSituations(t *testing.T) {
 		game := createSampleGame()
 
 		// simulating playing one hand
-		game.seenCards[NewCard(King, Spades)] = struct{}{}
-		game.seenCards[NewCard(Ten, Spades)] = struct{}{}
+		game.seenCards.AddCard(NewCard(King, Spades))
+		game.unseenCards.RemoveCard(NewCard(King, Spades))
+		game.seenCards.AddCard(NewCard(Ten, Spades))
+		game.unseenCards.RemoveCard(NewCard(Ten, Spades))
 		game.hand.RemoveCard(NewCard(King, Spades))
 		game.opponentScore = 14
-		game.UpdateDrawnCard(NewCard(Jack, Hearts))
+		game.hand.AddCard(NewCard(Jack, Hearts))
 
 		opponentMove := NewMoveWithAnnouncement(NewCard(King, Diamonds))
 		assert.PanicsWithValue(
@@ -306,15 +339,16 @@ func TestUpdateOpponentMoveInvalidSituations(t *testing.T) {
 	})
 
 	t.Run("announcing when the other card is the trump card", func(t *testing.T) {
-		game := createSampleGame()
-		game.trumpCard.Rank = Queen
+		game := createSampleGameWithTrumpCard(NewCard(Queen, Clubs))
 
 		// simulating playing one hand
-		game.seenCards[NewCard(King, Spades)] = struct{}{}
-		game.seenCards[NewCard(Ten, Spades)] = struct{}{}
+		game.seenCards.AddCard(NewCard(King, Spades))
+		game.unseenCards.RemoveCard(NewCard(King, Spades))
+		game.seenCards.AddCard(NewCard(Ten, Spades))
+		game.unseenCards.RemoveCard(NewCard(Ten, Spades))
 		game.hand.RemoveCard(NewCard(King, Spades))
 		game.opponentScore = 14
-		game.UpdateDrawnCard(NewCard(Jack, Hearts))
+		game.hand.AddCard(NewCard(Jack, Hearts))
 
 		opponentMove := NewMoveWithAnnouncement(NewCard(King, Clubs))
 		assert.PanicsWithValue(
@@ -359,8 +393,10 @@ func TestUpdateDrawnCardInvalidSituations(t *testing.T) {
 		game := createSampleGame()
 
 		// simulating playing one hand
-		game.seenCards[NewCard(King, Spades)] = struct{}{}
-		game.seenCards[NewCard(Ten, Spades)] = struct{}{}
+		game.seenCards.AddCard(NewCard(King, Spades))
+		game.unseenCards.RemoveCard(NewCard(King, Spades))
+		game.seenCards.AddCard(NewCard(Ten, Spades))
+		game.unseenCards.RemoveCard(NewCard(Ten, Spades))
 		game.hand.RemoveCard(NewCard(King, Spades))
 		game.opponentScore = 14
 		game.UpdateDrawnCard(NewCard(Jack, Hearts))
@@ -375,8 +411,10 @@ func TestUpdateDrawnCardInvalidSituations(t *testing.T) {
 		game := createSampleGame()
 
 		// simulating playing one hand
-		game.seenCards[NewCard(King, Spades)] = struct{}{}
-		game.seenCards[NewCard(Ten, Spades)] = struct{}{}
+		game.seenCards.AddCard(NewCard(King, Spades))
+		game.unseenCards.RemoveCard(NewCard(King, Spades))
+		game.seenCards.AddCard(NewCard(Ten, Spades))
+		game.unseenCards.RemoveCard(NewCard(Ten, Spades))
 		game.hand.RemoveCard(NewCard(King, Spades))
 		game.opponentScore = 14
 
@@ -390,8 +428,10 @@ func TestUpdateDrawnCardInvalidSituations(t *testing.T) {
 		game := createSampleGame()
 
 		// simulating playing one hand
-		game.seenCards[NewCard(King, Spades)] = struct{}{}
-		game.seenCards[NewCard(Ten, Spades)] = struct{}{}
+		game.seenCards.AddCard(NewCard(King, Spades))
+		game.unseenCards.RemoveCard(NewCard(King, Spades))
+		game.seenCards.AddCard(NewCard(Ten, Spades))
+		game.unseenCards.RemoveCard(NewCard(Ten, Spades))
 		game.hand.RemoveCard(NewCard(King, Spades))
 		game.opponentScore = 14
 
@@ -405,18 +445,24 @@ func TestUpdateDrawnCardInvalidSituations(t *testing.T) {
 		// TODO
 	})
 
+	t.Run("drawing card after every card is drawn", func(t *testing.T) {
+		// TODO
+	})
+
 	t.Run("drawing trump card", func(t *testing.T) {
 		game := createSampleGame()
 
 		// simulating playing one hand
-		game.seenCards[NewCard(King, Spades)] = struct{}{}
-		game.seenCards[NewCard(Ten, Spades)] = struct{}{}
+		game.seenCards.AddCard(NewCard(King, Spades))
+		game.unseenCards.RemoveCard(NewCard(King, Spades))
+		game.seenCards.AddCard(NewCard(Ten, Spades))
+		game.unseenCards.RemoveCard(NewCard(Ten, Spades))
 		game.hand.RemoveCard(NewCard(King, Spades))
 		game.opponentScore = 14
 
 		assert.PanicsWithValue(
 			t, "cannot draw trump card yet",
-			func() { game.UpdateDrawnCard(game.trumpCard) },
+			func() { game.UpdateDrawnCard(*game.trumpCard) },
 		)
 	})
 }
@@ -457,7 +503,7 @@ func TestHelperFunctions(t *testing.T) {
 		assert.Equal(t, 11, points(&ace))
 	})
 
-	t.Run("getRemainingCards", func(t *testing.T) {
+	t.Run("getHiddenCards", func(t *testing.T) {
 		hand := NewHand()
 		hand.AddCard(NewCard(Nine, Diamonds))
 		hand.AddCard(NewCard(King, Spades))
@@ -466,27 +512,27 @@ func TestHelperFunctions(t *testing.T) {
 		hand.AddCard(NewCard(Ace, Spades))
 		hand.AddCard(NewCard(Ten, Hearts))
 
-		seenCards := make(map[Card]struct{})
-		seenCards[NewCard(Nine, Clubs)] = struct{}{}
-		seenCards[NewCard(Jack, Spades)] = struct{}{}
-		seenCards[NewCard(Queen, Clubs)] = struct{}{}
-		seenCards[NewCard(King, Diamonds)] = struct{}{}
-		seenCards[NewCard(Ten, Diamonds)] = struct{}{}
-		seenCards[NewCard(Jack, Clubs)] = struct{}{}
-		seenCards[NewCard(Ace, Hearts)] = struct{}{}
-		seenCards[NewCard(Nine, Hearts)] = struct{}{}
-		seenCards[NewCard(Ten, Clubs)] = struct{}{}
-		seenCards[NewCard(Jack, Diamonds)] = struct{}{}
-		seenCards[NewCard(King, Clubs)] = struct{}{}
-		seenCards[NewCard(Queen, Spades)] = struct{}{}
+		trumpCard := NewCard(Nine, Clubs)
 
-		remaining := getRemainingCards(hand, seenCards)
-		assert.Equal(t, 6, len(remaining))
-		assert.True(t, remaining.HasCard(NewCard(Jack, Hearts)))
-		assert.True(t, remaining.HasCard(NewCard(Ace, Clubs)))
-		assert.True(t, remaining.HasCard(NewCard(Ace, Diamonds)))
-		assert.True(t, remaining.HasCard(NewCard(Queen, Hearts)))
-		assert.True(t, remaining.HasCard(NewCard(Ten, Spades)))
-		assert.True(t, remaining.HasCard(NewCard(King, Hearts)))
+		hidden := getHiddenCards(hand, trumpCard)
+
+		assert.Equal(t, 17, len(hidden))
+		assert.True(t, hidden.HasCard(NewCard(Jack, Spades)))
+		assert.True(t, hidden.HasCard(NewCard(Queen, Clubs)))
+		assert.True(t, hidden.HasCard(NewCard(King, Diamonds)))
+		assert.True(t, hidden.HasCard(NewCard(Ten, Diamonds)))
+		assert.True(t, hidden.HasCard(NewCard(Jack, Clubs)))
+		assert.True(t, hidden.HasCard(NewCard(Ace, Hearts)))
+		assert.True(t, hidden.HasCard(NewCard(Nine, Hearts)))
+		assert.True(t, hidden.HasCard(NewCard(Ten, Clubs)))
+		assert.True(t, hidden.HasCard(NewCard(Jack, Diamonds)))
+		assert.True(t, hidden.HasCard(NewCard(King, Clubs)))
+		assert.True(t, hidden.HasCard(NewCard(Queen, Spades)))
+		assert.True(t, hidden.HasCard(NewCard(Jack, Hearts)))
+		assert.True(t, hidden.HasCard(NewCard(Ace, Clubs)))
+		assert.True(t, hidden.HasCard(NewCard(Ace, Diamonds)))
+		assert.True(t, hidden.HasCard(NewCard(Queen, Hearts)))
+		assert.True(t, hidden.HasCard(NewCard(Ten, Spades)))
+		assert.True(t, hidden.HasCard(NewCard(King, Hearts)))
 	})
 }

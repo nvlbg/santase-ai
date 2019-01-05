@@ -33,11 +33,7 @@ func TestNewHandOverfilling(t *testing.T) {
 func TestNewHandAddingSameCardTwice(t *testing.T) {
 	hand := NewHand()
 	hand.AddCard(NewCard(Nine, Hearts))
-
-	assert.PanicsWithValue(
-		t, "9♥ is already in the hand",
-		func() { hand.AddCard(NewCard(Nine, Hearts)) },
-	)
+	hand.AddCard(NewCard(Nine, Hearts))
 }
 
 func TestHasCard(t *testing.T) {
@@ -89,5 +85,4 @@ func TestNewMoveWithAnnouncementAndTrumpCardSwitchImpossibleAnnouncement(t *test
 		t, "announcement moves are only possible with queens and kings",
 		func() { NewMoveWithAnnouncementAndTrumpCardSwitch(NewCard(Ten, Hearts)) },
 	)
-
 }
