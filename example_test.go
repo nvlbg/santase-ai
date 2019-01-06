@@ -27,8 +27,10 @@ func ExampleGame() {
 	// start the AI
 	move := game.GetMove()
 
-	fmt.Println(move)
+	fmt.Println(move.Card)
 
 	// finish the first round by updating what card the AI draws
 	game.UpdateDrawnCard(NewCard(Jack, Hearts))
+	// Output:
+	// 10♥
 }

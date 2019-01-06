@@ -1,5 +1,10 @@
 package santase
 
+import (
+	"math/rand"
+	"sort"
+)
+
 type Suit int
 
 const (
@@ -99,6 +104,35 @@ func (h *Hand) RemoveCard(c Card) {
 	delete(*h, c)
 }
 
+func (h *Hand) GetRandomCard() Card {
+	i := rand.Intn(len(*h))
+	var card Card
+	for card = range *h {
+		if i == 0 {
+			break
+		}
+		i--
+	}
+	return card
+}
+
+func (h Hand) String() string {
+	var cards []Card
+	for card := range h {
+		cards = append(cards, card)
+	}
+	sort.Slice(cards, func(i, j int) bool {
+		return cards[i].Suit < cards[j].Suit || (cards[i].Suit == cards[j].Suit && cards[i].Rank < cards[j].Rank)
+	})
+
+	result := "{ "
+	for _, card := range cards {
+		result += card.String() + " "
+	}
+	result += "}"
+	return result
+}
+
 type Pile map[Card]struct{}
 
 func NewPile() Pile {
@@ -116,6 +150,15 @@ func (p *Pile) HasCard(c Card) bool {
 
 func (p *Pile) RemoveCard(c Card) {
 	delete(*p, c)
+}
+
+func (p Pile) String() string {
+	result := "{ "
+	for card := range p {
+		result += card.String() + " "
+	}
+	result += "}"
+	return result
 }
 
 type Move struct {
@@ -241,11 +284,7 @@ func CreateGame(hand Hand, trumpCard Card, isOpponentMove bool) Game {
 }
 
 func (g *Game) getMove() Move {
-	return Move{
-		Card:            NewCard(Ace, Spades),
-		IsAnnouncement:  false,
-		SwitchTrumpCard: false,
-	}
+	return singleObserverInformationSetMCTS(g)
 }
 
 func (g *Game) GetMove() Move {
