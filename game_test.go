@@ -487,7 +487,7 @@ func TestHelperFunctions(t *testing.T) {
 		assert.Equal(t, &d, strongerCard(&d, &a, Hearts))
 	})
 
-	t.Run("points", func(t *testing.T) {
+	t.Run("Points", func(t *testing.T) {
 		nine := NewCard(Nine, Hearts)
 		jack := NewCard(Jack, Hearts)
 		queen := NewCard(Queen, Hearts)
@@ -495,12 +495,12 @@ func TestHelperFunctions(t *testing.T) {
 		ten := NewCard(Ten, Hearts)
 		ace := NewCard(Ace, Hearts)
 
-		assert.Equal(t, 0, points(&nine))
-		assert.Equal(t, 2, points(&jack))
-		assert.Equal(t, 3, points(&queen))
-		assert.Equal(t, 4, points(&king))
-		assert.Equal(t, 10, points(&ten))
-		assert.Equal(t, 11, points(&ace))
+		assert.Equal(t, 0, Points(&nine))
+		assert.Equal(t, 2, Points(&jack))
+		assert.Equal(t, 3, Points(&queen))
+		assert.Equal(t, 4, Points(&king))
+		assert.Equal(t, 10, Points(&ten))
+		assert.Equal(t, 11, Points(&ace))
 	})
 
 	t.Run("getHiddenCards", func(t *testing.T) {
