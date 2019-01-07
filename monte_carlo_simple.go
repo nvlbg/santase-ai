@@ -261,6 +261,13 @@ func (g *game) runSimulation() int {
 	}
 }
 
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 func sample(g *Game) game {
 	hiddenCards := make([]Card, 0, len(g.unseenCards))
 	for card := range g.unseenCards {
@@ -284,13 +291,13 @@ func sample(g *Game) game {
 	for card := range g.knownOpponentCards {
 		opponentHand.AddCard(card)
 	}
-	for _, card := range hiddenCards[:splitAt] {
+	for _, card := range hiddenCards[:min(len(hiddenCards), splitAt)] {
 		opponentHand.AddCard(card)
 	}
 
 	var stack []Card
 	if g.trumpCard != nil {
-		stack = hiddenCards[splitAt:]
+		stack = hiddenCards[min(len(hiddenCards), splitAt):]
 	}
 
 	return game{
