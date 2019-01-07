@@ -71,12 +71,12 @@ func (c Card) String() string {
 	return c.Rank.String() + c.Suit.String()
 }
 
-var allCards []Card
+var AllCards []Card
 
 func init() {
 	for _, rank := range []Rank{Nine, Jack, Queen, King, Ten, Ace} {
 		for _, suit := range []Suit{Clubs, Diamonds, Hearts, Spades} {
-			allCards = append(allCards, NewCard(rank, suit))
+			AllCards = append(AllCards, NewCard(rank, suit))
 		}
 	}
 }
@@ -239,7 +239,7 @@ var pointsMap = map[Rank]int{
 	Ace:   11,
 }
 
-func points(c *Card) int {
+func Points(c *Card) int {
 	if pts, ok := pointsMap[c.Rank]; ok {
 		return pts
 	}
@@ -249,7 +249,7 @@ func points(c *Card) int {
 
 func getHiddenCards(hand Hand, trumpCard Card) Pile {
 	remaining := NewPile()
-	for _, card := range allCards {
+	for _, card := range AllCards {
 		isInHand := hand.HasCard(card)
 		isTrumpCard := card == trumpCard
 		if !isInHand && !isTrumpCard {
@@ -291,6 +291,10 @@ func CreateGame(hand Hand, trumpCard Card, isOpponentMove bool) Game {
 	}
 }
 
+func (g *Game) StrongerCard(a *Card, b *Card) *Card {
+	return strongerCard(a, b, g.trump)
+}
+
 func (g *Game) getMove() Move {
 	return singleObserverInformationSetMCTS(g)
 }
@@ -328,10 +332,10 @@ func (g *Game) GetMove() Move {
 	} else {
 		stronger := strongerCard(g.cardPlayed, &move.Card, g.trump)
 		if g.cardPlayed == stronger {
-			g.score += points(g.cardPlayed) + points(&move.Card)
+			g.score += Points(g.cardPlayed) + Points(&move.Card)
 			g.isOpponentMove = true
 		} else {
-			g.opponentScore += points(g.cardPlayed) + points(&move.Card)
+			g.opponentScore += Points(g.cardPlayed) + Points(&move.Card)
 			g.isOpponentMove = false
 		}
 		g.seenCards.AddCard(*g.cardPlayed)
@@ -442,10 +446,10 @@ func (g *Game) UpdateOpponentMove(opponentMove Move) {
 	} else {
 		stronger := strongerCard(g.cardPlayed, &opponentMove.Card, g.trump)
 		if g.cardPlayed == stronger {
-			g.score += points(g.cardPlayed) + points(&opponentMove.Card)
+			g.score += Points(g.cardPlayed) + Points(&opponentMove.Card)
 			g.isOpponentMove = false
 		} else {
-			g.opponentScore += points(g.cardPlayed) + points(&opponentMove.Card)
+			g.opponentScore += Points(g.cardPlayed) + Points(&opponentMove.Card)
 			g.isOpponentMove = true
 		}
 		g.seenCards.AddCard(*g.cardPlayed)

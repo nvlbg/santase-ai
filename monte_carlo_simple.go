@@ -5,7 +5,7 @@ import (
 	"math/rand"
 )
 
-const n = 1000
+const n = 100000
 const c = 0.7
 
 type node struct {
@@ -152,7 +152,7 @@ func (g *game) simulate(card Card) {
 			}
 		}
 
-		*winnerScore += points(g.cardPlayed) + points(&card)
+		*winnerScore += Points(g.cardPlayed) + Points(&card)
 		g.cardPlayed = nil
 		hand.RemoveCard(card)
 
