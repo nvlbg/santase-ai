@@ -83,8 +83,16 @@ func init() {
 
 type Hand map[Card]struct{}
 
-func NewHand() Hand {
-	return make(map[Card]struct{})
+func NewHand(cards ...Card) Hand {
+	if len(cards) > 6 {
+		panic("too many cards given")
+	}
+
+	result := make(map[Card]struct{})
+	for _, card := range cards {
+		result[card] = struct{}{}
+	}
+	return result
 }
 
 func (h *Hand) AddCard(c Card) {
