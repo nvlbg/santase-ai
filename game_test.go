@@ -361,6 +361,7 @@ func TestUpdateOpponentMoveInvalidSituations(t *testing.T) {
 func TestUpdateOpponentMoveEdgeCaseSituations(t *testing.T) {
 	// TODO:
 	// playing trump card after switching it
+	// playing trump card after drawing it
 	// playing trump card after switching it + announcing
 	// playing trump card after drawing it
 }

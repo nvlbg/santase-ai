@@ -498,6 +498,10 @@ func (g *Game) UpdateDrawnCard(card Card) {
 		for card := range g.unseenCards {
 			g.knownOpponentCards.AddCard(card)
 		}
+		if card != *g.trumpCard {
+			g.knownOpponentCards.AddCard(*g.trumpCard)
+		}
 		g.unseenCards = NewPile()
+		g.trumpCard = nil
 	}
 }
