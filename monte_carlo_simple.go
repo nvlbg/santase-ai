@@ -24,7 +24,9 @@ func (n *node) isExpanded(game *game) bool {
 	hand := game.getHand()
 
 	for card := range hand {
-		if _, ok := n.children[card]; !ok {
+		isCardLegal := game.isCardLegal(card)
+		_, hasChild := n.children[card]
+		if isCardLegal && !hasChild {
 			return false
 		}
 	}
@@ -46,7 +48,9 @@ func (n *node) expandRandomChild(g *game) *node {
 
 	var availableCards []Card
 	for card := range hand {
-		if _, ok := n.children[card]; !ok {
+		isLegal := g.isCardLegal(card)
+		_, hasChild := n.children[card]
+		if isLegal && !hasChild {
 			availableCards = append(availableCards, card)
 		}
 	}
@@ -89,6 +93,54 @@ func (g *game) getHand() Hand {
 		return g.opponentHand
 	}
 	return g.hand
+}
+
+func (g *game) isCardLegal(card Card) bool {
+	// you're first to play or the game is not closed
+	if g.cardPlayed == nil || g.trumpCard != nil {
+		return true
+	}
+
+	// playing stronger card of the requested suit
+	if card.Suit == g.cardPlayed.Suit && card.Rank > g.cardPlayed.Rank {
+		return true
+	}
+
+	hand := g.getHand()
+	if g.cardPlayed.Suit == card.Suit {
+		for c := range hand {
+			if c.Suit == g.cardPlayed.Suit && c.Rank > g.cardPlayed.Rank {
+				// you're holding stronger card of the same suit that you must play
+				return false
+			}
+		}
+		// you don't have stronger card of the same suit
+		return true
+	}
+
+	for c := range hand {
+		if c.Suit == g.cardPlayed.Suit {
+			// you're holding card of the requested suit that you must play
+			return false
+		}
+	}
+
+	if g.cardPlayed.Suit != g.trump && card.Suit == g.trump {
+		// you are forced to play trump card in this case
+		return true
+	}
+
+	if g.cardPlayed.Suit != g.trump {
+		for c := range hand {
+			if c.Suit == g.trump {
+				// you're holding a trump card that you should play
+				return false
+			}
+		}
+	}
+
+	// your move is valid
+	return true
 }
 
 func (g *game) simulate(card Card) {
@@ -322,6 +374,9 @@ func selectNode(root *node, game *game) *node {
 		var bestChild *node
 		var bestCard Card
 		for card := range game.getHand() {
+			if !game.isCardLegal(card) {
+				continue
+			}
 			u := v.children[card]
 			score := float64(u.score)/float64(u.visits) + c*math.Sqrt(2*math.Log(float64(u.availability))/float64(u.visits))
 			if score > bestScore {
