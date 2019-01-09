@@ -25,16 +25,16 @@ func (n *node) isExpanded(game *game) bool {
 
 	for card := range hand {
 		isCardLegal := game.isCardLegal(card)
-		_, hasChild := n.children[card]
-		if isCardLegal && !hasChild {
+		child := n.children[card]
+		if isCardLegal && (child == nil || child.visits == 0) {
 			return false
 		}
 	}
 
 	if game.cardPlayed == nil && len(game.stack) > 1 && len(game.stack) < 11 {
 		nineTrump := NewCard(Nine, game.trump)
-		_, isTrumpCardExpanded := n.children[*game.trumpCard]
-		if hand.HasCard(nineTrump) && !isTrumpCardExpanded {
+		child := n.children[*game.trumpCard]
+		if hand.HasCard(nineTrump) && (child == nil || child.visits == 0) {
 			return false
 		}
 	}
@@ -43,36 +43,37 @@ func (n *node) isExpanded(game *game) bool {
 }
 
 func (n *node) expandRandomChild(g *game) *node {
-	// TODO: should only one node or all nodes be expanded? how to update availability of unexpanded nodes
 	hand := g.getHand()
 
-	var availableCards []Card
+	var unexpandedCards []Card
 	for card := range hand {
 		isLegal := g.isCardLegal(card)
-		_, hasChild := n.children[card]
-		if isLegal && !hasChild {
-			availableCards = append(availableCards, card)
+		child := n.children[card]
+		if isLegal && (child == nil || child.visits == 0) {
+			unexpandedCards = append(unexpandedCards, card)
 		}
 	}
 
 	if g.cardPlayed == nil && len(g.stack) > 1 && len(g.stack) < 11 {
 		nineTrump := NewCard(Nine, g.trump)
-		_, isTrumpCardExpanded := n.children[*g.trumpCard]
-		if hand.HasCard(nineTrump) && !isTrumpCardExpanded {
-			availableCards = append(availableCards, *g.trumpCard)
+		child := n.children[*g.trumpCard]
+		if hand.HasCard(nineTrump) && (child == nil || child.visits == 0) {
+			unexpandedCards = append(unexpandedCards, *g.trumpCard)
 		}
 	}
 
-	card := availableCards[rand.Intn(len(availableCards))]
-	g.simulate(card)
-	n.children[card] = &node{
-		parent:       n,
-		children:     make(map[Card]*node),
-		availability: 1,
-		visits:       1,
-		score:        0,
+	for _, card := range unexpandedCards {
+		n.children[card] = &node{
+			parent:       n,
+			children:     make(map[Card]*node),
+			availability: 1,
+			visits:       0,
+			score:        0,
+		}
 	}
-
+	card := unexpandedCards[rand.Intn(len(unexpandedCards))]
+	g.simulate(card)
+	n.children[card].visits++
 	return n.children[card]
 }
 
