@@ -332,10 +332,10 @@ func (g *Game) GetMove() Move {
 	} else {
 		stronger := strongerCard(g.cardPlayed, &move.Card, g.trump)
 		if g.cardPlayed == stronger {
-			g.score += Points(g.cardPlayed) + Points(&move.Card)
+			g.opponentScore += Points(g.cardPlayed) + Points(&move.Card)
 			g.isOpponentMove = true
 		} else {
-			g.opponentScore += Points(g.cardPlayed) + Points(&move.Card)
+			g.score += Points(g.cardPlayed) + Points(&move.Card)
 			g.isOpponentMove = false
 		}
 		g.seenCards.AddCard(*g.cardPlayed)
