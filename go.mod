@@ -1,4 +1,4 @@
-module santase
+module github.com/nvlbg/santase-ai
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
