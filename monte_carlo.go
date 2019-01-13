@@ -3,6 +3,7 @@ package santase
 import (
 	"math"
 	"math/rand"
+	"runtime"
 	"time"
 )
 
@@ -395,14 +396,40 @@ func selectNode(root *node, game *game, c float64) *node {
 	return v
 }
 
-func singleObserverInformationSetMCTS(game *Game) Move {
-	root := node{children: make(map[Card]*node)}
-	quit := make(chan struct{})
+func toMove(game *Game, bestCard Card) Move {
+	// check if switching is possible
+	switchTrumpCard := false
+	if game.cardPlayed == nil && len(game.seenCards) > 0 && len(game.seenCards) < 10 {
+		nineTrump := NewCard(Nine, game.trump)
+		if nineTrump != bestCard && game.hand.HasCard(nineTrump) {
+			switchTrumpCard = true
+		}
+	}
 
-	go func() {
-		<-time.After(game.timePerMove)
-		close(quit)
-	}()
+	// check if announcing is possible
+	isAnnouncement := false
+	if game.cardPlayed == nil && (bestCard.Rank == Queen || bestCard.Rank == King) {
+		var other Card
+		if bestCard.Rank == Queen {
+			other = NewCard(King, bestCard.Suit)
+		} else {
+			other = NewCard(Queen, bestCard.Suit)
+		}
+
+		if game.hand.HasCard(other) || (switchTrumpCard && *game.trumpCard == other) {
+			isAnnouncement = true
+		}
+	}
+
+	return Move{
+		Card:            bestCard,
+		SwitchTrumpCard: switchTrumpCard,
+		IsAnnouncement:  isAnnouncement,
+	}
+}
+
+func SOISMCTS(game *Game, results chan *node, quit chan struct{}) {
+	root := node{children: make(map[Card]*node)}
 
 loop:
 	for {
@@ -434,6 +461,21 @@ loop:
 		}
 	}
 
+	results <- &root
+}
+
+func singleObserverInformationSetMCTS(game *Game) Move {
+	results := make(chan *node)
+	quit := make(chan struct{})
+
+	go func() {
+		<-time.After(game.timePerMove)
+		close(quit)
+	}()
+
+	go SOISMCTS(game, results, quit)
+	root := <-results
+
 	// return best move
 	var bestCard Card
 	var maxVisits = 0
@@ -444,33 +486,40 @@ loop:
 		}
 	}
 
-	// check if switching is possible
-	switchTrumpCard := false
-	if game.cardPlayed == nil && len(game.seenCards) > 0 && len(game.seenCards) < 10 {
-		nineTrump := NewCard(Nine, game.trump)
-		if nineTrump != bestCard && game.hand.HasCard(nineTrump) {
-			switchTrumpCard = true
+	return toMove(game, bestCard)
+}
+
+func singleObserverInformationSetMCTSRootParallelization(game *Game) Move {
+	results := make(chan *node)
+	quit := make(chan struct{})
+
+	go func() {
+		<-time.After(game.timePerMove)
+		close(quit)
+	}()
+
+	numCpus := runtime.NumCPU()
+
+	for i := 0; i < numCpus; i++ {
+		go SOISMCTS(game, results, quit)
+	}
+
+	stats := make(map[Card]int)
+	for i := 0; i < numCpus; i++ {
+		root := <-results
+		for card, v := range root.children {
+			stats[card] += v.visits
 		}
 	}
 
-	// check if announcing is possible
-	isAnnouncement := false
-	if game.cardPlayed == nil && (bestCard.Rank == Queen || bestCard.Rank == King) {
-		var other Card
-		if bestCard.Rank == Queen {
-			other = NewCard(King, bestCard.Suit)
-		} else {
-			other = NewCard(Queen, bestCard.Suit)
-		}
-
-		if game.hand.HasCard(other) || (switchTrumpCard && *game.trumpCard == other) {
-			isAnnouncement = true
+	var bestCard Card
+	var maxVisits = 0
+	for card, visits := range stats {
+		if visits > maxVisits {
+			maxVisits = visits
+			bestCard = card
 		}
 	}
 
-	return Move{
-		Card:            bestCard,
-		SwitchTrumpCard: switchTrumpCard,
-		IsAnnouncement:  isAnnouncement,
-	}
+	return toMove(game, bestCard)
 }

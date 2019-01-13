@@ -301,7 +301,8 @@ func (g *Game) StrongerCard(a *Card, b *Card) *Card {
 }
 
 func (g *Game) getMove() Move {
-	return singleObserverInformationSetMCTS(g)
+	// return singleObserverInformationSetMCTS(g)
+	return singleObserverInformationSetMCTSRootParallelization(g)
 }
 
 func (g *Game) GetMove() Move {
