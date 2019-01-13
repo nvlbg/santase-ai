@@ -3,6 +3,7 @@ package santase
 import (
 	"math/rand"
 	"sort"
+	"time"
 )
 
 type Suit int
@@ -270,9 +271,11 @@ type Game struct {
 	trumpCard          *Card
 	cardPlayed         *Card
 	isOpponentMove     bool
+	c                  float64
+	timePerMove        time.Duration
 }
 
-func CreateGame(hand Hand, trumpCard Card, isOpponentMove bool) Game {
+func CreateGame(hand Hand, trumpCard Card, isOpponentMove bool, c float64, timePerMove time.Duration) Game {
 	if len(hand) != 6 {
 		panic("player's hand is not complete")
 	}
@@ -288,6 +291,8 @@ func CreateGame(hand Hand, trumpCard Card, isOpponentMove bool) Game {
 		trumpCard:          &trumpCard,
 		cardPlayed:         nil,
 		isOpponentMove:     isOpponentMove,
+		c:                  c,
+		timePerMove:        timePerMove,
 	}
 }
 

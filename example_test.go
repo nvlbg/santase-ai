@@ -1,6 +1,9 @@
 package santase
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 func ExampleGame() {
 	// create initial hand for the ai
@@ -19,7 +22,7 @@ func ExampleGame() {
 	isOpponentMove := true
 
 	// create a game
-	game := CreateGame(hand, trumpCard, isOpponentMove)
+	game := CreateGame(hand, trumpCard, isOpponentMove, 0.7, time.Second)
 
 	// update the game with the move the opponent makes
 	game.UpdateOpponentMove(NewMove(NewCard(Nine, Hearts)))

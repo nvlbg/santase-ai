@@ -3,10 +3,8 @@ package santase
 import (
 	"math"
 	"math/rand"
+	"time"
 )
-
-const n = 100000
-const c = 0.7
 
 type node struct {
 	parent       *node
@@ -366,7 +364,7 @@ func sample(g *Game) game {
 	}
 }
 
-func selectNode(root *node, game *game) *node {
+func selectNode(root *node, game *game, c float64) *node {
 	v := root
 
 	for v.isExpanded(game) && !v.isTerminal() {
@@ -399,28 +397,40 @@ func selectNode(root *node, game *game) *node {
 
 func singleObserverInformationSetMCTS(game *Game) Move {
 	root := node{children: make(map[Card]*node)}
+	quit := make(chan struct{})
 
-	for i := 0; i < n; i++ {
-		// choose a determinization at random compatible with the game
-		// this iteration will use only actions compatible with the
-		// selected determinization
-		g := sample(game)
+	go func() {
+		<-time.After(game.timePerMove)
+		close(quit)
+	}()
 
-		// select which node to expand
-		v := selectNode(&root, &g)
+loop:
+	for {
+		select {
+		case <-quit:
+			break loop
+		default:
+			// choose a determinization at random compatible with the game
+			// this iteration will use only actions compatible with the
+			// selected determinization
+			g := sample(game)
 
-		// expand the tree if the selected node is not fully expanded
-		if !v.isExpanded(&g) {
-			v = v.expandRandomChild(&g)
-		}
+			// select which node to expand
+			v := selectNode(&root, &g, game.c)
 
-		// simulate the game till the end using random moves
-		points := g.runSimulation()
+			// expand the tree if the selected node is not fully expanded
+			if !v.isExpanded(&g) {
+				v = v.expandRandomChild(&g)
+			}
 
-		// backpropagation
-		for v.parent != nil {
-			v.score += points
-			v = v.parent
+			// simulate the game till the end using random moves
+			points := g.runSimulation()
+
+			// backpropagation
+			for v.parent != nil {
+				v.score += points
+				v = v.parent
+			}
 		}
 	}
 

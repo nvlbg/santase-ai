@@ -2,6 +2,7 @@ package santase
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -18,7 +19,7 @@ func TestNewGame(t *testing.T) {
 	trumpCard := NewCard(Ace, Spades)
 
 	// check that it compiles and runs without panics
-	CreateGame(hand, trumpCard, false)
+	CreateGame(hand, trumpCard, false, 0.7, time.Second)
 }
 
 func TestNewGameIncompleteHand(t *testing.T) {
@@ -26,7 +27,7 @@ func TestNewGameIncompleteHand(t *testing.T) {
 	trumpCard := NewCard(Ace, Spades)
 	assert.PanicsWithValue(
 		t, "player's hand is not complete",
-		func() { CreateGame(hand, trumpCard, false) },
+		func() { CreateGame(hand, trumpCard, false, 0.7, time.Second) },
 	)
 }
 
@@ -44,12 +45,12 @@ func createSampleHand() Hand {
 func createSampleGame() Game {
 	hand := createSampleHand()
 	trumpCard := NewCard(Ten, Clubs)
-	return CreateGame(hand, trumpCard, true)
+	return CreateGame(hand, trumpCard, true, 0.7, time.Second)
 }
 
 func createSampleGameWithTrumpCard(trumpCard Card) Game {
 	hand := createSampleHand()
-	return CreateGame(hand, trumpCard, true)
+	return CreateGame(hand, trumpCard, true, 0.7, time.Second)
 }
 
 func TestUpdateOpponentMove(t *testing.T) {
