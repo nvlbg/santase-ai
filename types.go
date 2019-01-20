@@ -113,7 +113,7 @@ func (h *Hand) RemoveCard(c Card) {
 	delete(*h, c)
 }
 
-func (h *Hand) GetRandomCard() Card {
+func (h *Hand) getRandomCard() Card {
 	i := rand.Intn(len(*h))
 	var card Card
 	for card = range *h {
@@ -174,42 +174,7 @@ type Move struct {
 	Card            Card
 	IsAnnouncement  bool
 	SwitchTrumpCard bool
-}
-
-func NewMove(card Card) Move {
-	return Move{
-		Card: card,
-	}
-}
-
-func NewMoveWithAnnouncement(card Card) Move {
-	if card.Rank != Queen && card.Rank != King {
-		panic("announcement moves are only possible with queens and kings")
-	}
-
-	return Move{
-		Card:           card,
-		IsAnnouncement: true,
-	}
-}
-
-func NewMoveWithTrumpCardSwitch(card Card) Move {
-	return Move{
-		Card:            card,
-		SwitchTrumpCard: true,
-	}
-}
-
-func NewMoveWithAnnouncementAndTrumpCardSwitch(card Card) Move {
-	if card.Rank != Queen && card.Rank != King {
-		panic("announcement moves are only possible with queens and kings")
-	}
-
-	return Move{
-		Card:            card,
-		IsAnnouncement:  true,
-		SwitchTrumpCard: true,
-	}
+	CloseGame       bool
 }
 
 func strongerCard(a *Card, b *Card, trump Suit) *Card {
@@ -273,6 +238,7 @@ type Game struct {
 	isOpponentMove     bool
 	c                  float64
 	timePerMove        time.Duration
+	isClosed           bool
 }
 
 func CreateGame(hand Hand, trumpCard Card, isOpponentMove bool, c float64, timePerMove time.Duration) Game {
@@ -293,6 +259,7 @@ func CreateGame(hand Hand, trumpCard Card, isOpponentMove bool, c float64, timeP
 		isOpponentMove:     isOpponentMove,
 		c:                  c,
 		timePerMove:        timePerMove,
+		isClosed:           false,
 	}
 }
 
@@ -310,7 +277,7 @@ func (g *Game) GetMove() Move {
 		panic("not AI's turn")
 	}
 
-	if g.cardPlayed == nil && len(g.seenCards) <= 12 && len(g.hand) != 6 {
+	if !g.isClosed && g.cardPlayed == nil && len(g.seenCards) <= 12 && len(g.hand) != 6 {
 		panic("should not play before drawing cards")
 	}
 
@@ -320,6 +287,10 @@ func (g *Game) GetMove() Move {
 		g.hand.RemoveCard(NewCard(Nine, g.trump))
 		g.hand.AddCard(*g.trumpCard)
 		g.trumpCard.Rank = Nine
+	}
+
+	if move.CloseGame {
+		g.isClosed = true
 	}
 
 	if move.IsAnnouncement {
@@ -369,7 +340,7 @@ func (g *Game) UpdateOpponentMove(opponentMove Move) {
 		panic("card is the same as the one on the table")
 	}
 
-	if g.cardPlayed == nil && len(g.seenCards) <= 12 && len(g.hand) != 6 {
+	if !g.isClosed && g.cardPlayed == nil && len(g.seenCards) <= 12 && len(g.hand) != 6 {
 		panic("should not play before drawing cards")
 	}
 
@@ -390,6 +361,10 @@ func (g *Game) UpdateOpponentMove(opponentMove Move) {
 			panic("cannot switch trump card after it has been taken")
 		}
 
+		if g.isClosed {
+			panic("cannot switch trump card after the game has been closed")
+		}
+
 		if g.trumpCard.Rank == Nine {
 			panic("cannot switch trump card - trump card is a nine")
 		}
@@ -398,6 +373,30 @@ func (g *Game) UpdateOpponentMove(opponentMove Move) {
 		g.trumpCard.Rank = Nine
 		g.knownOpponentCards.RemoveCard(*g.trumpCard)
 		g.unseenCards.RemoveCard(*g.trumpCard)
+	}
+
+	if opponentMove.CloseGame {
+		if g.cardPlayed != nil {
+			panic("cannot close game when second to move")
+		}
+
+		if len(g.seenCards) == 0 {
+			panic("cannot close game on first move")
+		}
+
+		if len(g.seenCards) == 10 {
+			panic("cannot close game with only two cards left in the stack")
+		}
+
+		if len(g.seenCards) >= 12 {
+			panic("cannot close game after all cards have been drawn")
+		}
+
+		if g.isClosed {
+			panic("cannot close game because it is already closed")
+		}
+
+		g.isClosed = true
 	}
 
 	if g.trumpCard != nil && opponentMove.Card == *g.trumpCard {
@@ -467,6 +466,10 @@ func (g *Game) UpdateOpponentMove(opponentMove Move) {
 func (g *Game) UpdateDrawnCard(card Card) {
 	if g.cardPlayed != nil {
 		panic("cannot draw cards in the middle of a play")
+	}
+
+	if g.isClosed {
+		panic("should not draw cards when the game is closed")
 	}
 
 	if len(g.hand) == 6 {

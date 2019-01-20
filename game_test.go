@@ -57,7 +57,7 @@ func TestUpdateOpponentMove(t *testing.T) {
 	game := createSampleGame()
 
 	card := NewCard(Ace, Diamonds)
-	opponentMove := NewMove(card)
+	opponentMove := Move{Card: card}
 
 	assert.Nil(t, game.cardPlayed)
 	assert.True(t, game.unseenCards.HasCard(card))
@@ -85,7 +85,10 @@ func TestUpdateOpponentMoveInferingOpponentCards(t *testing.T) {
 
 		assert.False(t, game.knownOpponentCards.HasCard(NewCard(King, Hearts)))
 		assert.True(t, game.unseenCards.HasCard(NewCard(King, Hearts)))
-		opponentMove := NewMoveWithAnnouncement(NewCard(Queen, Hearts))
+		opponentMove := Move{
+			Card:           NewCard(Queen, Hearts),
+			IsAnnouncement: true,
+		}
 		game.UpdateOpponentMove(opponentMove)
 		assert.True(t, game.knownOpponentCards.HasCard(NewCard(King, Hearts)))
 		assert.False(t, game.unseenCards.HasCard(NewCard(King, Hearts)))
@@ -106,7 +109,10 @@ func TestUpdateOpponentMoveInferingOpponentCards(t *testing.T) {
 
 		originalTrumpCard := *game.trumpCard
 		assert.False(t, game.knownOpponentCards.HasCard(originalTrumpCard))
-		opponentMove := NewMoveWithTrumpCardSwitch(NewCard(Queen, Hearts))
+		opponentMove := Move{
+			Card:            NewCard(Queen, Hearts),
+			SwitchTrumpCard: true,
+		}
 		game.UpdateOpponentMove(opponentMove)
 		assert.True(t, game.knownOpponentCards.HasCard(originalTrumpCard))
 		assert.False(t, game.unseenCards.HasCard(originalTrumpCard))
@@ -129,7 +135,11 @@ func TestUpdateOpponentMoveInferingOpponentCards(t *testing.T) {
 		assert.False(t, game.knownOpponentCards.HasCard(originalTrumpCard))
 		assert.False(t, game.knownOpponentCards.HasCard(NewCard(King, Hearts)))
 		assert.True(t, game.unseenCards.HasCard(NewCard(King, Hearts)))
-		opponentMove := NewMoveWithAnnouncementAndTrumpCardSwitch(NewCard(Queen, Hearts))
+		opponentMove := Move{
+			Card:            NewCard(Queen, Hearts),
+			IsAnnouncement:  true,
+			SwitchTrumpCard: true,
+		}
 		game.UpdateOpponentMove(opponentMove)
 		assert.True(t, game.knownOpponentCards.HasCard(originalTrumpCard))
 		assert.True(t, game.knownOpponentCards.HasCard(NewCard(King, Hearts)))
@@ -143,7 +153,7 @@ func TestUpdateOpponentMoveInferingOpponentCards(t *testing.T) {
 
 func TestUpdateOpponentMoveInvalidSituations(t *testing.T) {
 	card := NewCard(Ace, Diamonds)
-	opponentMove := NewMove(card)
+	opponentMove := Move{Card: card}
 
 	t.Run("not opponents move", func(t *testing.T) {
 		game := createSampleGame()
@@ -174,7 +184,7 @@ func TestUpdateOpponentMoveInvalidSituations(t *testing.T) {
 
 	t.Run("card is in our hand", func(t *testing.T) {
 		game := createSampleGame()
-		opponentMove := NewMove(NewCard(Nine, Diamonds))
+		opponentMove := Move{Card: NewCard(Nine, Diamonds)}
 
 		assert.PanicsWithValue(
 			t, "card is in ai's hand",
@@ -189,7 +199,7 @@ func TestUpdateOpponentMoveInvalidSituations(t *testing.T) {
 		card := NewCard(Ace, Spades)
 		game.cardPlayed = &card
 		game.hand.RemoveCard(card)
-		opponentMove := NewMove(card)
+		opponentMove := Move{Card: card}
 
 		assert.PanicsWithValue(
 			t, "card is the same as the one on the table",
@@ -216,7 +226,7 @@ func TestUpdateOpponentMoveInvalidSituations(t *testing.T) {
 
 	t.Run("playing trump card", func(t *testing.T) {
 		game := createSampleGame()
-		opponentMove := NewMove(*game.trumpCard)
+		opponentMove := Move{Card: *game.trumpCard}
 
 		assert.PanicsWithValue(
 			t, "played card is the trump card",
@@ -231,7 +241,10 @@ func TestUpdateOpponentMoveInvalidSituations(t *testing.T) {
 		card := NewCard(Ace, Spades)
 		game.cardPlayed = &card
 		game.hand.RemoveCard(card)
-		opponentMove := NewMoveWithTrumpCardSwitch(opponentMove.Card)
+		opponentMove := Move{
+			Card:            opponentMove.Card,
+			SwitchTrumpCard: true,
+		}
 
 		assert.PanicsWithValue(
 			t, "cannot switch trump card when you're not first to play",
@@ -241,7 +254,10 @@ func TestUpdateOpponentMoveInvalidSituations(t *testing.T) {
 
 	t.Run("switching trump card on first move", func(t *testing.T) {
 		game := createSampleGame()
-		opponentMove := NewMoveWithTrumpCardSwitch(opponentMove.Card)
+		opponentMove := Move{
+			Card:            opponentMove.Card,
+			SwitchTrumpCard: true,
+		}
 
 		assert.PanicsWithValue(
 			t, "cannot switch trump card on first move",
@@ -259,7 +275,10 @@ func TestUpdateOpponentMoveInvalidSituations(t *testing.T) {
 
 	t.Run("switching trump card with rank nine", func(t *testing.T) {
 		game := createSampleGameWithTrumpCard(NewCard(Nine, Clubs))
-		opponentMove := NewMoveWithTrumpCardSwitch(opponentMove.Card)
+		opponentMove := Move{
+			Card:            opponentMove.Card,
+			SwitchTrumpCard: true,
+		}
 
 		// simulating playing one hand
 		game.seenCards.AddCard(NewCard(King, Spades))
@@ -284,7 +303,10 @@ func TestUpdateOpponentMoveInvalidSituations(t *testing.T) {
 		game.cardPlayed = &card
 		game.hand.RemoveCard(card)
 
-		opponentMove := NewMoveWithAnnouncement(NewCard(Queen, Clubs))
+		opponentMove := Move{
+			Card:           NewCard(Queen, Clubs),
+			IsAnnouncement: true,
+		}
 
 		assert.PanicsWithValue(
 			t, "cannot announce when you're not first to play",
@@ -304,7 +326,10 @@ func TestUpdateOpponentMoveInvalidSituations(t *testing.T) {
 		game.opponentScore = 14
 		game.hand.AddCard(NewCard(Jack, Hearts))
 
-		opponentMove := NewMoveWithAnnouncement(NewCard(Queen, Spades))
+		opponentMove := Move{
+			Card:           NewCard(Queen, Spades),
+			IsAnnouncement: true,
+		}
 		assert.PanicsWithValue(
 			t, "cannot be an announcement because other card has already been played",
 			func() { game.UpdateOpponentMove(opponentMove) },
@@ -314,7 +339,10 @@ func TestUpdateOpponentMoveInvalidSituations(t *testing.T) {
 	t.Run("announcing on first move", func(t *testing.T) {
 		game := createSampleGame()
 
-		opponentMove := NewMoveWithAnnouncement(NewCard(Queen, Hearts))
+		opponentMove := Move{
+			Card:           NewCard(Queen, Hearts),
+			IsAnnouncement: true,
+		}
 		assert.PanicsWithValue(
 			t, "cannot announce on first move",
 			func() { game.UpdateOpponentMove(opponentMove) },
@@ -333,7 +361,10 @@ func TestUpdateOpponentMoveInvalidSituations(t *testing.T) {
 		game.opponentScore = 14
 		game.hand.AddCard(NewCard(Jack, Hearts))
 
-		opponentMove := NewMoveWithAnnouncement(NewCard(King, Diamonds))
+		opponentMove := Move{
+			Card:           NewCard(King, Diamonds),
+			IsAnnouncement: true,
+		}
 		assert.PanicsWithValue(
 			t, "cannot be an announcement because other card is in ai's hand",
 			func() { game.UpdateOpponentMove(opponentMove) },
@@ -352,11 +383,66 @@ func TestUpdateOpponentMoveInvalidSituations(t *testing.T) {
 		game.opponentScore = 14
 		game.hand.AddCard(NewCard(Jack, Hearts))
 
-		opponentMove := NewMoveWithAnnouncement(NewCard(King, Clubs))
+		opponentMove := Move{
+			Card:           NewCard(King, Clubs),
+			IsAnnouncement: true,
+		}
 		assert.PanicsWithValue(
 			t, "cannot be an announcement because other card is the trump card",
 			func() { game.UpdateOpponentMove(opponentMove) },
 		)
+	})
+
+	t.Run("closing game on first move", func(t *testing.T) {
+		game := createSampleGame()
+		opponentMove := Move{
+			Card:      card,
+			CloseGame: true,
+		}
+
+		assert.PanicsWithValue(
+			t, "cannot close game on first move",
+			func() { game.UpdateOpponentMove(opponentMove) },
+		)
+	})
+
+	t.Run("closing game when second to play", func(t *testing.T) {
+		game := createSampleGame()
+
+		// simulate if ai has played first move
+		c := NewCard(Ace, Spades)
+		game.cardPlayed = &c
+		game.hand.RemoveCard(c)
+
+		opponentMove := Move{
+			Card:      card,
+			CloseGame: true,
+		}
+
+		assert.PanicsWithValue(
+			t, "cannot close game when second to move",
+			func() { game.UpdateOpponentMove(opponentMove) },
+		)
+	})
+
+	t.Run("closing game with two cards left in stack", func(t *testing.T) {
+		// TODO
+	})
+
+	t.Run("closing game after all cards have been drawn", func(t *testing.T) {
+		// TODO
+	})
+
+	t.Run("closing game after the game has been closed", func(t *testing.T) {
+		// TODO
+	})
+
+	t.Run("switching trump card after game has been closed", func(t *testing.T) {
+		// TODO
+	})
+
+	t.Run("drawing cards when the game is closed", func(t *testing.T) {
+		// TODO
 	})
 }
 

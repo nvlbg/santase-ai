@@ -7,9 +7,14 @@ import (
 	"time"
 )
 
+type action struct {
+	card      Card
+	closeGame bool
+}
+
 type node struct {
 	parent       *node
-	children     map[Card]*node
+	children     map[action]*node
 	availability int
 	visits       int
 	score        int
@@ -21,18 +26,39 @@ func (n *node) isTerminal() bool {
 
 func (n *node) isExpanded(game *game) bool {
 	hand := game.getHand()
+	canCloseGame := game.canClose()
 
 	for card := range hand {
 		isCardLegal := game.isCardLegal(card)
-		child := n.children[card]
-		if isCardLegal && (child == nil || child.visits == 0) {
+		if !isCardLegal {
+			continue
+		}
+
+		// check if the move of playing this card is explored
+		child := n.children[action{card: card}]
+		if child == nil || child.visits == 0 {
 			return false
+		}
+
+		// check if closing the game and playing the card is explored (if possible)
+		if canCloseGame {
+			child = n.children[action{card: card, closeGame: true}]
+			if child == nil || child.visits == 0 {
+				return false
+			}
 		}
 	}
 
-	if game.cardPlayed == nil && len(game.stack) > 1 && len(game.stack) < 11 {
+	if game.cardPlayed == nil && !game.isClosed && len(game.stack) > 1 && len(game.stack) < 11 {
+		// check if switching is explored (if possible)
 		nineTrump := NewCard(Nine, game.trump)
-		child := n.children[*game.trumpCard]
+		child := n.children[action{card: *game.trumpCard}]
+		if hand.HasCard(nineTrump) && (child == nil || child.visits == 0) {
+			return false
+		}
+
+		// check if switching and closing the game is explored (if possible)
+		child = n.children[action{card: *game.trumpCard, closeGame: true}]
 		if hand.HasCard(nineTrump) && (child == nil || child.visits == 0) {
 			return false
 		}
@@ -43,37 +69,60 @@ func (n *node) isExpanded(game *game) bool {
 
 func (n *node) expandRandomChild(g *game) *node {
 	hand := g.getHand()
+	canCloseGame := g.canClose()
 
-	var unexpandedCards []Card
+	var unexpandedActions []action
 	for card := range hand {
 		isLegal := g.isCardLegal(card)
-		child := n.children[card]
-		if isLegal && (child == nil || child.visits == 0) {
-			unexpandedCards = append(unexpandedCards, card)
+		if !isLegal {
+			continue
+		}
+
+		a := action{card: card}
+		child := n.children[a]
+		if child == nil || child.visits == 0 {
+			unexpandedActions = append(unexpandedActions, a)
+		}
+
+		if canCloseGame {
+			a := action{card: card, closeGame: true}
+			child := n.children[a]
+			if child == nil || child.visits == 0 {
+				unexpandedActions = append(unexpandedActions, a)
+			}
 		}
 	}
 
-	if g.cardPlayed == nil && len(g.stack) > 1 && len(g.stack) < 11 {
+	if g.cardPlayed == nil && !g.isClosed && len(g.stack) > 1 && len(g.stack) < 11 {
 		nineTrump := NewCard(Nine, g.trump)
-		child := n.children[*g.trumpCard]
+		a := action{card: *g.trumpCard}
+		child := n.children[a]
 		if hand.HasCard(nineTrump) && (child == nil || child.visits == 0) {
-			unexpandedCards = append(unexpandedCards, *g.trumpCard)
+			unexpandedActions = append(unexpandedActions, a)
+		}
+
+		a = action{card: *g.trumpCard, closeGame: true}
+		child = n.children[a]
+		if hand.HasCard(nineTrump) && (child == nil || child.visits == 0) {
+			unexpandedActions = append(unexpandedActions, a)
 		}
 	}
 
-	for _, card := range unexpandedCards {
-		n.children[card] = &node{
-			parent:       n,
-			children:     make(map[Card]*node),
-			availability: 1,
-			visits:       0,
-			score:        0,
+	for _, a := range unexpandedActions {
+		if n.children[a] == nil {
+			n.children[a] = &node{
+				parent:       n,
+				children:     make(map[action]*node),
+				availability: 1,
+				visits:       0,
+				score:        0,
+			}
 		}
 	}
-	card := unexpandedCards[rand.Intn(len(unexpandedCards))]
-	g.simulate(card)
-	n.children[card].visits++
-	return n.children[card]
+	action := unexpandedActions[rand.Intn(len(unexpandedActions))]
+	g.simulate(action)
+	n.children[action].visits++
+	return n.children[action]
 }
 
 type game struct {
@@ -86,8 +135,12 @@ type game struct {
 	trumpCard      *Card
 	cardPlayed     *Card
 	isOpponentMove bool
+	isClosed       bool
 }
 
+func (g *game) canClose() bool {
+	return g.cardPlayed == nil && !g.isClosed && len(g.stack) > 1 && len(g.stack) < 11
+}
 func (g *game) getHand() Hand {
 	if g.isOpponentMove {
 		return g.opponentHand
@@ -97,7 +150,7 @@ func (g *game) getHand() Hand {
 
 func (g *game) isCardLegal(card Card) bool {
 	// you're first to play or the game is not closed
-	if g.cardPlayed == nil || g.trumpCard != nil {
+	if g.cardPlayed == nil || (g.trumpCard != nil && !g.isClosed) {
 		return true
 	}
 
@@ -143,32 +196,36 @@ func (g *game) isCardLegal(card Card) bool {
 	return true
 }
 
-func (g *game) simulate(card Card) {
+func (g *game) simulate(a action) {
 	hand := g.getHand()
 
 	if g.cardPlayed == nil {
 		// check if switching is possible
-		if g.trumpCard != nil && g.trumpCard.Rank != Nine && len(g.stack) > 1 && len(g.stack) < 11 {
+		if g.trumpCard != nil && !g.isClosed && g.trumpCard.Rank != Nine && len(g.stack) > 1 && len(g.stack) < 11 {
 			nineTrump := NewCard(Nine, g.trump)
-			if card != nineTrump && hand.HasCard(nineTrump) {
+			if a.card != nineTrump && hand.HasCard(nineTrump) {
 				hand.RemoveCard(nineTrump)
 				hand.AddCard(*g.trumpCard)
 				g.trumpCard = &nineTrump
 			}
 		}
 
+		if a.closeGame {
+			g.isClosed = true
+		}
+
 		// check if announcing is possible
-		if card.Rank == Queen || card.Rank == King && len(g.stack) < 11 {
+		if a.card.Rank == Queen || a.card.Rank == King && len(g.stack) < 11 {
 			var other Card
-			if card.Rank == Queen {
-				other = NewCard(King, card.Suit)
+			if a.card.Rank == Queen {
+				other = NewCard(King, a.card.Suit)
 			} else {
-				other = NewCard(Queen, card.Suit)
+				other = NewCard(Queen, a.card.Suit)
 			}
 
 			if hand.HasCard(other) {
 				var announcementPoints int
-				if card.Suit == g.trump {
+				if a.card.Suit == g.trump {
 					announcementPoints = 40
 				} else {
 					announcementPoints = 20
@@ -182,11 +239,11 @@ func (g *game) simulate(card Card) {
 			}
 		}
 
-		g.cardPlayed = &card
-		hand.RemoveCard(card)
+		g.cardPlayed = &a.card
+		hand.RemoveCard(a.card)
 		g.isOpponentMove = !g.isOpponentMove
 	} else {
-		stronger := strongerCard(g.cardPlayed, &card, g.trump)
+		stronger := strongerCard(g.cardPlayed, &a.card, g.trump)
 		var winnerScore *int
 		if g.cardPlayed == stronger {
 			if g.isOpponentMove {
@@ -204,53 +261,58 @@ func (g *game) simulate(card Card) {
 			}
 		}
 
-		*winnerScore += Points(g.cardPlayed) + Points(&card)
+		*winnerScore += Points(g.cardPlayed) + Points(&a.card)
 		g.cardPlayed = nil
-		hand.RemoveCard(card)
+		hand.RemoveCard(a.card)
 
-		if len(g.stack) > 1 {
-			if g.isOpponentMove {
-				g.opponentHand.AddCard(g.stack[len(g.stack)-1])
-				g.hand.AddCard(g.stack[len(g.stack)-2])
-			} else {
-				g.hand.AddCard(g.stack[len(g.stack)-1])
-				g.opponentHand.AddCard(g.stack[len(g.stack)-2])
+		if !g.isClosed {
+			if len(g.stack) > 1 {
+				if g.isOpponentMove {
+					g.opponentHand.AddCard(g.stack[len(g.stack)-1])
+					g.hand.AddCard(g.stack[len(g.stack)-2])
+				} else {
+					g.hand.AddCard(g.stack[len(g.stack)-1])
+					g.opponentHand.AddCard(g.stack[len(g.stack)-2])
+				}
+				g.stack = g.stack[:len(g.stack)-2]
+			} else if len(g.stack) == 1 {
+				if g.isOpponentMove {
+					g.opponentHand.AddCard(g.stack[0])
+					g.hand.AddCard(*g.trumpCard)
+				} else {
+					g.hand.AddCard(g.stack[0])
+					g.opponentHand.AddCard(*g.trumpCard)
+				}
+				g.stack = nil
+				g.trumpCard = nil
 			}
-			g.stack = g.stack[:len(g.stack)-2]
-		} else if len(g.stack) == 1 {
-			if g.isOpponentMove {
-				g.opponentHand.AddCard(g.stack[0])
-				g.hand.AddCard(*g.trumpCard)
-			} else {
-				g.hand.AddCard(g.stack[0])
-				g.opponentHand.AddCard(*g.trumpCard)
-			}
-			g.stack = nil
-			g.trumpCard = nil
 		}
 	}
 }
 
 func (g *game) runSimulation() int {
 	var hand Hand
-	var card Card
+	var a action
 	for g.score < 66 && g.opponentScore < 66 && (len(g.hand) > 0 || len(g.opponentHand) > 0) {
-		if g.isOpponentMove {
-			hand = g.opponentHand
-		} else {
-			hand = g.hand
-		}
+		hand = g.getHand()
 
 		if g.cardPlayed == nil {
-			card = hand.GetRandomCard()
+			card := hand.getRandomCard()
 			// check if switching is possible
-			if card == NewCard(Nine, g.trump) && len(g.stack) > 1 && len(g.stack) < 11 {
+			if card == NewCard(Nine, g.trump) && !g.isClosed && len(g.stack) > 1 && len(g.stack) < 11 {
 				// TODO: this way playing without switching is not simulated
 				card = *g.trumpCard
 			}
+
+			if g.canClose() && rand.Intn(7) == 0 {
+				// with probability = 1/7 decide wether to close the game at this turn
+				a = action{card: card, closeGame: true}
+			} else {
+				a = action{card: card}
+			}
 		} else {
-			if g.trumpCard != nil {
-				card = hand.GetRandomCard()
+			if g.trumpCard != nil && !g.isClosed {
+				a = action{card: hand.getRandomCard()}
 			} else {
 				var possibleResponses []Card
 				for card := range hand {
@@ -277,10 +339,11 @@ func (g *game) runSimulation() int {
 						possibleResponses = append(possibleResponses, card)
 					}
 				}
-				card = possibleResponses[rand.Intn(len(possibleResponses))]
+				card := possibleResponses[rand.Intn(len(possibleResponses))]
+				a = action{card: card}
 			}
 		}
-		g.simulate(card)
+		g.simulate(a)
 	}
 
 	// TODO: 3 points here could potentially be only 2 if a player has a hand with 2 nines
@@ -334,7 +397,7 @@ func sample(g *Game) game {
 		hand.AddCard(card)
 	}
 
-	splitAt := 6 - len(g.knownOpponentCards)
+	splitAt := len(g.hand) - len(g.knownOpponentCards)
 	if !g.isOpponentMove && g.cardPlayed != nil {
 		splitAt--
 	}
@@ -362,6 +425,7 @@ func sample(g *Game) game {
 		trumpCard:      g.trumpCard,
 		cardPlayed:     g.cardPlayed,
 		isOpponentMove: g.isOpponentMove,
+		isClosed:       g.isClosed,
 	}
 }
 
@@ -372,48 +436,61 @@ func selectNode(root *node, game *game, c float64) *node {
 		// descend down the tree using modified UCB1
 		bestScore := math.Inf(-1)
 		var bestChild *node
-		var bestCard Card
+		var bestAction action
+		canCloseGame := game.canClose()
 		for card := range game.getHand() {
 			if !game.isCardLegal(card) {
 				continue
 			}
-			u := v.children[card]
+			a := action{card: card}
+			u := v.children[a]
 			score := float64(u.score)/float64(u.visits) + c*math.Sqrt(2*math.Log(float64(u.availability))/float64(u.visits))
 			if score > bestScore {
 				bestScore = score
 				bestChild = u
-				bestCard = card
+				bestAction = a
 			}
-
 			u.availability++
+
+			if canCloseGame {
+				a := action{card: card, closeGame: true}
+				u = v.children[a]
+				score = float64(u.score)/float64(u.visits) + c*math.Sqrt(2*math.Log(float64(u.availability))/float64(u.visits))
+				if score > bestScore {
+					bestScore = score
+					bestChild = u
+					bestAction = a
+				}
+				u.availability++
+			}
 		}
 
 		v = bestChild
 		v.visits++
-		game.simulate(bestCard)
+		game.simulate(bestAction)
 	}
 
 	return v
 }
 
-func toMove(game *Game, bestCard Card) Move {
+func toMove(game *Game, bestAction action) Move {
 	// check if switching is possible
 	switchTrumpCard := false
 	if game.cardPlayed == nil && len(game.seenCards) > 0 && len(game.seenCards) < 10 {
 		nineTrump := NewCard(Nine, game.trump)
-		if nineTrump != bestCard && game.hand.HasCard(nineTrump) {
+		if nineTrump != bestAction.card && game.hand.HasCard(nineTrump) {
 			switchTrumpCard = true
 		}
 	}
 
 	// check if announcing is possible
 	isAnnouncement := false
-	if game.cardPlayed == nil && (bestCard.Rank == Queen || bestCard.Rank == King) {
+	if game.cardPlayed == nil && (bestAction.card.Rank == Queen || bestAction.card.Rank == King) {
 		var other Card
-		if bestCard.Rank == Queen {
-			other = NewCard(King, bestCard.Suit)
+		if bestAction.card.Rank == Queen {
+			other = NewCard(King, bestAction.card.Suit)
 		} else {
-			other = NewCard(Queen, bestCard.Suit)
+			other = NewCard(Queen, bestAction.card.Suit)
 		}
 
 		if game.hand.HasCard(other) || (switchTrumpCard && *game.trumpCard == other) {
@@ -422,14 +499,15 @@ func toMove(game *Game, bestCard Card) Move {
 	}
 
 	return Move{
-		Card:            bestCard,
+		Card:            bestAction.card,
 		SwitchTrumpCard: switchTrumpCard,
 		IsAnnouncement:  isAnnouncement,
+		CloseGame:       bestAction.closeGame,
 	}
 }
 
 func SOISMCTS(game *Game, results chan *node, quit chan struct{}) {
-	root := node{children: make(map[Card]*node)}
+	root := node{children: make(map[action]*node)}
 
 loop:
 	for {
@@ -477,16 +555,16 @@ func singleObserverInformationSetMCTS(game *Game) Move {
 	root := <-results
 
 	// return best move
-	var bestCard Card
+	var bestAction action
 	var maxVisits = 0
-	for card, v := range root.children {
+	for a, v := range root.children {
 		if v.visits > maxVisits {
 			maxVisits = v.visits
-			bestCard = card
+			bestAction = a
 		}
 	}
 
-	return toMove(game, bestCard)
+	return toMove(game, bestAction)
 }
 
 func singleObserverInformationSetMCTSRootParallelization(game *Game) Move {
@@ -504,22 +582,22 @@ func singleObserverInformationSetMCTSRootParallelization(game *Game) Move {
 		go SOISMCTS(game, results, quit)
 	}
 
-	stats := make(map[Card]int)
+	stats := make(map[action]int)
 	for i := 0; i < numCpus; i++ {
 		root := <-results
-		for card, v := range root.children {
-			stats[card] += v.visits
+		for a, v := range root.children {
+			stats[a] += v.visits
 		}
 	}
 
-	var bestCard Card
+	var bestAction action
 	var maxVisits = 0
-	for card, visits := range stats {
+	for a, visits := range stats {
 		if visits > maxVisits {
 			maxVisits = visits
-			bestCard = card
+			bestAction = a
 		}
 	}
 
-	return toMove(game, bestCard)
+	return toMove(game, bestAction)
 }

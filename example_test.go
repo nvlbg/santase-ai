@@ -25,7 +25,7 @@ func ExampleGame() {
 	game := CreateGame(hand, trumpCard, isOpponentMove, 0.7, time.Second)
 
 	// update the game with the move the opponent makes
-	game.UpdateOpponentMove(NewMove(NewCard(Nine, Hearts)))
+	game.UpdateOpponentMove(Move{Card: NewCard(Nine, Hearts)})
 
 	// start the AI
 	move := game.GetMove()

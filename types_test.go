@@ -53,37 +53,3 @@ func TestRemoveCard(t *testing.T) {
 	hand.RemoveCard(NewCard(Nine, Hearts))
 	assert.False(t, hand.HasCard(NewCard(Nine, Hearts)))
 }
-
-func TestNewMove(t *testing.T) {
-	// Check this compiles and runs without panics
-	NewMove(NewCard(Nine, Clubs))
-}
-
-func TestNewMoveWithAnnouncement(t *testing.T) {
-	// Check this compiles and runs without panics
-	NewMoveWithAnnouncement(NewCard(Queen, Clubs))
-}
-
-func TestNewMoveWithAnnouncementImpossibleAnnouncement(t *testing.T) {
-	assert.PanicsWithValue(
-		t, "announcement moves are only possible with queens and kings",
-		func() { NewMoveWithAnnouncement(NewCard(Nine, Clubs)) },
-	)
-}
-
-func TestNewMoveWithTrumpCardSwitch(t *testing.T) {
-	// Check this compiles and runs without panics
-	NewMoveWithTrumpCardSwitch(NewCard(Ten, Hearts))
-}
-
-func TestNewMoveWithAnnouncementAndTrumpCardSwitch(t *testing.T) {
-	// Check this compiles and runs without panics
-	NewMoveWithAnnouncementAndTrumpCardSwitch(NewCard(Queen, Hearts))
-}
-
-func TestNewMoveWithAnnouncementAndTrumpCardSwitchImpossibleAnnouncement(t *testing.T) {
-	assert.PanicsWithValue(
-		t, "announcement moves are only possible with queens and kings",
-		func() { NewMoveWithAnnouncementAndTrumpCardSwitch(NewCard(Ten, Hearts)) },
-	)
-}
