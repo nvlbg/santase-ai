@@ -304,11 +304,10 @@ func (g *game) runSimulation() int {
 				card = *g.trumpCard
 			}
 
+			a = action{card: card}
+			// with probability = 1/7 decide wether to close the game at this turn
 			if g.canClose() && rand.Intn(7) == 0 {
-				// with probability = 1/7 decide wether to close the game at this turn
-				a = action{card: card, closeGame: true}
-			} else {
-				a = action{card: card}
+				a.closeGame = true
 			}
 		} else {
 			if g.trumpCard != nil && !g.isClosed {
@@ -353,7 +352,10 @@ func (g *game) runSimulation() int {
 		} else if g.score < g.opponentScore {
 			return -1
 		} else {
-			return 0
+			if g.isOpponentMove {
+				return -1
+			}
+			return 1
 		}
 	} else if g.score >= 66 {
 		if g.opponentScore == 0 {
@@ -372,7 +374,10 @@ func (g *game) runSimulation() int {
 			return -1
 		}
 	} else {
-		return 0
+		if g.isOpponentMove {
+			return -1
+		}
+		return 1
 	}
 }
 
@@ -444,7 +449,13 @@ func selectNode(root *node, game *game, c float64) *node {
 			}
 			a := action{card: card}
 			u := v.children[a]
-			score := float64(u.score)/float64(u.visits) + c*math.Sqrt(2*math.Log(float64(u.availability))/float64(u.visits))
+
+			f := float64(u.score) / float64(u.visits)
+			if game.isOpponentMove {
+				f *= -1
+			}
+			g := c * math.Sqrt(2*math.Log(float64(u.availability))/float64(u.visits))
+			score := f + g
 			if score > bestScore {
 				bestScore = score
 				bestChild = u
