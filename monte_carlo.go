@@ -496,7 +496,8 @@ func toMove(game *Game, bestAction action) Move {
 
 	// check if announcing is possible
 	isAnnouncement := false
-	if game.cardPlayed == nil && (bestAction.card.Rank == Queen || bestAction.card.Rank == King) {
+	if game.cardPlayed == nil && len(game.seenCards) != 0 &&
+		(bestAction.card.Rank == Queen || bestAction.card.Rank == King) {
 		var other Card
 		if bestAction.card.Rank == Queen {
 			other = NewCard(King, bestAction.card.Suit)
