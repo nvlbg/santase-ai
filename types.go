@@ -3,7 +3,6 @@ package santase
 import (
 	"math/rand"
 	"sort"
-	"time"
 )
 
 type Suit int
@@ -96,6 +95,14 @@ func NewHand(cards ...Card) Hand {
 	return result
 }
 
+func (h *Hand) Clone() Hand {
+	hand := NewHand()
+	for card := range *h {
+		hand.AddCard(card)
+	}
+	return hand
+}
+
 func (h *Hand) AddCard(c Card) {
 	if len(*h) == 6 {
 		panic("hand has 6 cards already")
@@ -113,7 +120,7 @@ func (h *Hand) RemoveCard(c Card) {
 	delete(*h, c)
 }
 
-func (h *Hand) getRandomCard() Card {
+func (h *Hand) GetRandomCard() Card {
 	i := rand.Intn(len(*h))
 	var card Card
 	for card = range *h {
@@ -161,6 +168,22 @@ func (p *Pile) RemoveCard(c Card) {
 	delete(*p, c)
 }
 
+func (p *Pile) Clone() Pile {
+	pile := NewPile()
+	for card := range *p {
+		pile.AddCard(card)
+	}
+	return pile
+}
+
+func (p *Pile) ToSlice() []Card {
+	result := make([]Card, 0, len(*p))
+	for card := range *p {
+		result = append(result, card)
+	}
+	return result
+}
+
 func (p Pile) String() string {
 	result := "{ "
 	for card := range p {
@@ -177,7 +200,7 @@ type Move struct {
 	CloseGame       bool
 }
 
-func strongerCard(a *Card, b *Card, trump Suit) *Card {
+func StrongerCard(a *Card, b *Card, trump Suit) *Card {
 	if a.Suit == b.Suit {
 		if a.Rank > b.Rank {
 			return a
@@ -225,6 +248,16 @@ func getHiddenCards(hand Hand, trumpCard Card) Pile {
 	return remaining
 }
 
+type Agent interface {
+	GetMove(*Game) Move
+}
+
+type dummyAgent struct{}
+
+func (a dummyAgent) GetMove(g *Game) Move {
+	panic("no agent provided")
+}
+
 type Game struct {
 	trump              Suit
 	score              int
@@ -236,12 +269,11 @@ type Game struct {
 	trumpCard          *Card
 	cardPlayed         *Card
 	isOpponentMove     bool
-	c                  float64
-	timePerMove        time.Duration
 	isClosed           bool
+	agent              Agent
 }
 
-func CreateGame(hand Hand, trumpCard Card, isOpponentMove bool, c float64, timePerMove time.Duration) Game {
+func CreateGame(hand Hand, trumpCard Card, isOpponentMove bool) Game {
 	if len(hand) != 6 {
 		panic("player's hand is not complete")
 	}
@@ -257,19 +289,69 @@ func CreateGame(hand Hand, trumpCard Card, isOpponentMove bool, c float64, timeP
 		trumpCard:          &trumpCard,
 		cardPlayed:         nil,
 		isOpponentMove:     isOpponentMove,
-		c:                  c,
-		timePerMove:        timePerMove,
 		isClosed:           false,
+		agent:              dummyAgent{},
 	}
 }
 
-func (g *Game) StrongerCard(a *Card, b *Card) *Card {
-	return strongerCard(a, b, g.trump)
+func (g *Game) GetCardPlayed() *Card {
+	if g.cardPlayed == nil {
+		return nil
+	}
+	card := *g.cardPlayed
+	return &card
 }
 
-func (g *Game) getMove() Move {
-	// return singleObserverInformationSetMCTS(g)
-	return singleObserverInformationSetMCTSRootParallelization(g)
+func (g *Game) GetHand() Hand {
+	return g.hand.Clone()
+}
+
+func (g *Game) IsClosed() bool {
+	return g.isClosed
+}
+
+func (g *Game) IsOpponentMove() bool {
+	return g.isOpponentMove
+}
+
+func (g *Game) GetKnownOpponentCards() Hand {
+	return g.knownOpponentCards.Clone()
+}
+
+func (g *Game) GetScore() int {
+	return g.score
+}
+
+func (g *Game) GetOpponentScore() int {
+	return g.opponentScore
+}
+
+func (g *Game) GetTrump() Suit {
+	return g.trump
+}
+
+func (g *Game) GetTrumpCard() *Card {
+	if g.trumpCard == nil {
+		return nil
+	}
+	card := *g.trumpCard
+	return &card
+}
+
+func (g *Game) GetSeenCards() Pile {
+	return g.seenCards.Clone()
+}
+
+func (g *Game) GetUnseenCards() Pile {
+	return g.unseenCards.Clone()
+}
+
+func (g *Game) SetAgent(agent Agent) {
+	g.agent = agent
+}
+
+func (g *Game) StrongerCard(a *Card, b *Card) *Card {
+	return StrongerCard(a, b, g.trump)
 }
 
 func (g *Game) GetMove() Move {
@@ -281,7 +363,7 @@ func (g *Game) GetMove() Move {
 		panic("should not play before drawing cards")
 	}
 
-	move := g.getMove()
+	move := g.agent.GetMove(g)
 
 	if move.SwitchTrumpCard {
 		g.hand.RemoveCard(NewCard(Nine, g.trump))
@@ -307,7 +389,7 @@ func (g *Game) GetMove() Move {
 		g.cardPlayed = &move.Card
 		g.isOpponentMove = true
 	} else {
-		stronger := strongerCard(g.cardPlayed, &move.Card, g.trump)
+		stronger := StrongerCard(g.cardPlayed, &move.Card, g.trump)
 		if g.cardPlayed == stronger {
 			g.opponentScore += Points(g.cardPlayed) + Points(&move.Card)
 			g.isOpponentMove = true
@@ -449,7 +531,7 @@ func (g *Game) UpdateOpponentMove(opponentMove Move) {
 		g.cardPlayed = &opponentMove.Card
 		g.isOpponentMove = false
 	} else {
-		stronger := strongerCard(g.cardPlayed, &opponentMove.Card, g.trump)
+		stronger := StrongerCard(g.cardPlayed, &opponentMove.Card, g.trump)
 		if g.cardPlayed == stronger {
 			g.score += Points(g.cardPlayed) + Points(&opponentMove.Card)
 			g.isOpponentMove = false

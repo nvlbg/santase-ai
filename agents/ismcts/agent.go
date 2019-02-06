@@ -1,14 +1,16 @@
-package santase
+package ismcts
 
 import (
 	"math"
 	"math/rand"
 	"runtime"
 	"time"
+
+	santase "github.com/nvlbg/santase-ai"
 )
 
 type action struct {
-	card      Card
+	card      santase.Card
 	closeGame bool
 }
 
@@ -51,7 +53,7 @@ func (n *node) isExpanded(game *game) bool {
 
 	if game.cardPlayed == nil && !game.isClosed && len(game.stack) > 1 && len(game.stack) < 11 {
 		// check if switching is explored (if possible)
-		nineTrump := NewCard(Nine, game.trump)
+		nineTrump := santase.NewCard(santase.Nine, game.trump)
 		child := n.children[action{card: *game.trumpCard}]
 		if hand.HasCard(nineTrump) && (child == nil || child.visits == 0) {
 			return false
@@ -94,7 +96,7 @@ func (n *node) expandRandomChild(g *game) *node {
 	}
 
 	if g.cardPlayed == nil && !g.isClosed && len(g.stack) > 1 && len(g.stack) < 11 {
-		nineTrump := NewCard(Nine, g.trump)
+		nineTrump := santase.NewCard(santase.Nine, g.trump)
 		a := action{card: *g.trumpCard}
 		child := n.children[a]
 		if hand.HasCard(nineTrump) && (child == nil || child.visits == 0) {
@@ -128,12 +130,12 @@ func (n *node) expandRandomChild(g *game) *node {
 type game struct {
 	score          int
 	opponentScore  int
-	hand           Hand
-	opponentHand   Hand
-	trump          Suit
-	stack          []Card
-	trumpCard      *Card
-	cardPlayed     *Card
+	hand           santase.Hand
+	opponentHand   santase.Hand
+	trump          santase.Suit
+	stack          []santase.Card
+	trumpCard      *santase.Card
+	cardPlayed     *santase.Card
 	isOpponentMove bool
 	isClosed       bool
 }
@@ -141,14 +143,14 @@ type game struct {
 func (g *game) canClose() bool {
 	return g.cardPlayed == nil && !g.isClosed && len(g.stack) > 1 && len(g.stack) < 11
 }
-func (g *game) getHand() Hand {
+func (g *game) getHand() santase.Hand {
 	if g.isOpponentMove {
 		return g.opponentHand
 	}
 	return g.hand
 }
 
-func (g *game) isCardLegal(card Card) bool {
+func (g *game) isCardLegal(card santase.Card) bool {
 	// you're first to play or the game is not closed
 	if g.cardPlayed == nil || (g.trumpCard != nil && !g.isClosed) {
 		return true
@@ -201,8 +203,8 @@ func (g *game) simulate(a action) {
 
 	if g.cardPlayed == nil {
 		// check if switching is possible
-		if g.trumpCard != nil && !g.isClosed && g.trumpCard.Rank != Nine && len(g.stack) > 1 && len(g.stack) < 11 {
-			nineTrump := NewCard(Nine, g.trump)
+		if g.trumpCard != nil && !g.isClosed && g.trumpCard.Rank != santase.Nine && len(g.stack) > 1 && len(g.stack) < 11 {
+			nineTrump := santase.NewCard(santase.Nine, g.trump)
 			if a.card != nineTrump && hand.HasCard(nineTrump) {
 				hand.RemoveCard(nineTrump)
 				hand.AddCard(*g.trumpCard)
@@ -215,12 +217,12 @@ func (g *game) simulate(a action) {
 		}
 
 		// check if announcing is possible
-		if a.card.Rank == Queen || a.card.Rank == King && len(g.stack) < 11 {
-			var other Card
-			if a.card.Rank == Queen {
-				other = NewCard(King, a.card.Suit)
+		if a.card.Rank == santase.Queen || a.card.Rank == santase.King && len(g.stack) < 11 {
+			var other santase.Card
+			if a.card.Rank == santase.Queen {
+				other = santase.NewCard(santase.King, a.card.Suit)
 			} else {
-				other = NewCard(Queen, a.card.Suit)
+				other = santase.NewCard(santase.Queen, a.card.Suit)
 			}
 
 			if hand.HasCard(other) {
@@ -243,7 +245,7 @@ func (g *game) simulate(a action) {
 		hand.RemoveCard(a.card)
 		g.isOpponentMove = !g.isOpponentMove
 	} else {
-		stronger := strongerCard(g.cardPlayed, &a.card, g.trump)
+		stronger := santase.StrongerCard(g.cardPlayed, &a.card, g.trump)
 		var winnerScore *int
 		if g.cardPlayed == stronger {
 			if g.isOpponentMove {
@@ -261,7 +263,7 @@ func (g *game) simulate(a action) {
 			}
 		}
 
-		*winnerScore += Points(g.cardPlayed) + Points(&a.card)
+		*winnerScore += santase.Points(g.cardPlayed) + santase.Points(&a.card)
 		g.cardPlayed = nil
 		hand.RemoveCard(a.card)
 
@@ -291,15 +293,15 @@ func (g *game) simulate(a action) {
 }
 
 func (g *game) runSimulation() int {
-	var hand Hand
+	var hand santase.Hand
 	var a action
 	for g.score < 66 && g.opponentScore < 66 && (len(g.hand) > 0 || len(g.opponentHand) > 0) {
 		hand = g.getHand()
 
 		if g.cardPlayed == nil {
-			card := hand.getRandomCard()
+			card := hand.GetRandomCard()
 			// check if switching is possible
-			if card == NewCard(Nine, g.trump) && !g.isClosed && len(g.stack) > 1 && len(g.stack) < 11 {
+			if card == santase.NewCard(santase.Nine, g.trump) && !g.isClosed && len(g.stack) > 1 && len(g.stack) < 11 {
 				// TODO: this way playing without switching is not simulated
 				card = *g.trumpCard
 			}
@@ -311,9 +313,9 @@ func (g *game) runSimulation() int {
 			}
 		} else {
 			if g.trumpCard != nil && !g.isClosed {
-				a = action{card: hand.getRandomCard()}
+				a = action{card: hand.GetRandomCard()}
 			} else {
-				var possibleResponses []Card
+				var possibleResponses []santase.Card
 				for card := range hand {
 					if card.Suit == g.cardPlayed.Suit && card.Rank > g.cardPlayed.Rank {
 						possibleResponses = append(possibleResponses, card)
@@ -388,49 +390,43 @@ func min(a, b int) int {
 	return b
 }
 
-func sample(g *Game) game {
-	hiddenCards := make([]Card, 0, len(g.unseenCards))
-	for card := range g.unseenCards {
-		hiddenCards = append(hiddenCards, card)
-	}
+func sample(g *santase.Game) game {
+	unseenCards := g.GetUnseenCards()
+	hiddenCards := unseenCards.ToSlice()
 	rand.Shuffle(len(hiddenCards), func(i, j int) {
 		hiddenCards[i], hiddenCards[j] = hiddenCards[j], hiddenCards[i]
 	})
 
-	hand := NewHand()
-	for card := range g.hand {
-		hand.AddCard(card)
-	}
+	hand := g.GetHand()
+	knownOpponentCards := g.GetKnownOpponentCards()
 
-	splitAt := len(g.hand) - len(g.knownOpponentCards)
-	if !g.isOpponentMove && g.cardPlayed != nil {
+	splitAt := len(hand) - len(knownOpponentCards)
+	if !g.IsOpponentMove() && g.GetCardPlayed() != nil {
 		splitAt--
 	}
 
-	opponentHand := NewHand()
-	for card := range g.knownOpponentCards {
-		opponentHand.AddCard(card)
-	}
+	opponentHand := knownOpponentCards
 	for _, card := range hiddenCards[:min(len(hiddenCards), splitAt)] {
 		opponentHand.AddCard(card)
 	}
 
-	var stack []Card
-	if g.trumpCard != nil {
+	trumpCard := g.GetTrumpCard()
+	var stack []santase.Card
+	if trumpCard != nil {
 		stack = hiddenCards[min(len(hiddenCards), splitAt):]
 	}
 
 	return game{
-		score:          g.score,
-		opponentScore:  g.opponentScore,
+		score:          g.GetScore(),
+		opponentScore:  g.GetOpponentScore(),
 		hand:           hand,
 		opponentHand:   opponentHand,
-		trump:          g.trump,
+		trump:          g.GetTrump(),
 		stack:          stack,
-		trumpCard:      g.trumpCard,
-		cardPlayed:     g.cardPlayed,
-		isOpponentMove: g.isOpponentMove,
-		isClosed:       g.isClosed,
+		trumpCard:      trumpCard,
+		cardPlayed:     g.GetCardPlayed(),
+		isOpponentMove: g.IsOpponentMove(),
+		isClosed:       g.IsClosed(),
 	}
 }
 
@@ -484,33 +480,37 @@ func selectNode(root *node, game *game, c float64) *node {
 	return v
 }
 
-func toMove(game *Game, bestAction action) Move {
+func toMove(game *santase.Game, bestAction action) santase.Move {
+	hand := game.GetHand()
+	seenCards := game.GetSeenCards()
+	cardPlayed := game.GetCardPlayed()
+
 	// check if switching is possible
 	switchTrumpCard := false
-	if game.cardPlayed == nil && len(game.seenCards) > 0 && len(game.seenCards) < 10 {
-		nineTrump := NewCard(Nine, game.trump)
-		if nineTrump != bestAction.card && game.hand.HasCard(nineTrump) {
+	if cardPlayed == nil && len(seenCards) > 0 && len(seenCards) < 10 {
+		nineTrump := santase.NewCard(santase.Nine, game.GetTrump())
+		if nineTrump != bestAction.card && hand.HasCard(nineTrump) {
 			switchTrumpCard = true
 		}
 	}
 
 	// check if announcing is possible
 	isAnnouncement := false
-	if game.cardPlayed == nil && len(game.seenCards) != 0 &&
-		(bestAction.card.Rank == Queen || bestAction.card.Rank == King) {
-		var other Card
-		if bestAction.card.Rank == Queen {
-			other = NewCard(King, bestAction.card.Suit)
+	if cardPlayed == nil && len(seenCards) != 0 &&
+		(bestAction.card.Rank == santase.Queen || bestAction.card.Rank == santase.King) {
+		var other santase.Card
+		if bestAction.card.Rank == santase.Queen {
+			other = santase.NewCard(santase.King, bestAction.card.Suit)
 		} else {
-			other = NewCard(Queen, bestAction.card.Suit)
+			other = santase.NewCard(santase.Queen, bestAction.card.Suit)
 		}
 
-		if game.hand.HasCard(other) || (switchTrumpCard && *game.trumpCard == other) {
+		if hand.HasCard(other) || (switchTrumpCard && *game.GetTrumpCard() == other) {
 			isAnnouncement = true
 		}
 	}
 
-	return Move{
+	return santase.Move{
 		Card:            bestAction.card,
 		SwitchTrumpCard: switchTrumpCard,
 		IsAnnouncement:  isAnnouncement,
@@ -518,7 +518,7 @@ func toMove(game *Game, bestAction action) Move {
 	}
 }
 
-func SOISMCTS(game *Game, results chan *node, quit chan struct{}) {
+func (a *agent) SOISMCTS(game *santase.Game, results chan *node, quit chan struct{}) {
 	root := node{children: make(map[action]*node)}
 
 loop:
@@ -533,7 +533,7 @@ loop:
 			g := sample(game)
 
 			// select which node to expand
-			v := selectNode(&root, &g, game.c)
+			v := selectNode(&root, &g, a.c)
 
 			// expand the tree if the selected node is not fully expanded
 			if !v.isExpanded(&g) {
@@ -554,16 +554,16 @@ loop:
 	results <- &root
 }
 
-func singleObserverInformationSetMCTS(game *Game) Move {
+func (a *agent) singleObserverInformationSetMCTS(game *santase.Game) santase.Move {
 	results := make(chan *node)
 	quit := make(chan struct{})
 
 	go func() {
-		<-time.After(game.timePerMove)
+		<-time.After(a.timePerMove)
 		close(quit)
 	}()
 
-	go SOISMCTS(game, results, quit)
+	go a.SOISMCTS(game, results, quit)
 	root := <-results
 
 	// return best move
@@ -579,19 +579,19 @@ func singleObserverInformationSetMCTS(game *Game) Move {
 	return toMove(game, bestAction)
 }
 
-func singleObserverInformationSetMCTSRootParallelization(game *Game) Move {
+func (a *agent) singleObserverInformationSetMCTSRootParallelization(game *santase.Game) santase.Move {
 	results := make(chan *node)
 	quit := make(chan struct{})
 
 	go func() {
-		<-time.After(game.timePerMove)
+		<-time.After(a.timePerMove)
 		close(quit)
 	}()
 
 	numCpus := runtime.NumCPU()
 
 	for i := 0; i < numCpus; i++ {
-		go SOISMCTS(game, results, quit)
+		go a.SOISMCTS(game, results, quit)
 	}
 
 	stats := make(map[action]int)
@@ -612,4 +612,20 @@ func singleObserverInformationSetMCTSRootParallelization(game *Game) Move {
 	}
 
 	return toMove(game, bestAction)
+}
+
+type agent struct {
+	c           float64
+	timePerMove time.Duration
+}
+
+func (a *agent) GetMove(game *santase.Game) santase.Move {
+	return a.singleObserverInformationSetMCTSRootParallelization(game)
+}
+
+func NewAgent(c float64, timePerMove time.Duration) santase.Agent {
+	return &agent{
+		c:           5.4,
+		timePerMove: 2 * time.Second,
+	}
 }

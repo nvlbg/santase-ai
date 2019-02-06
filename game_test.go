@@ -2,7 +2,6 @@ package santase
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -19,7 +18,7 @@ func TestNewGame(t *testing.T) {
 	trumpCard := NewCard(Ace, Spades)
 
 	// check that it compiles and runs without panics
-	CreateGame(hand, trumpCard, false, 0.7, time.Second)
+	CreateGame(hand, trumpCard, false)
 }
 
 func TestNewGameIncompleteHand(t *testing.T) {
@@ -27,7 +26,7 @@ func TestNewGameIncompleteHand(t *testing.T) {
 	trumpCard := NewCard(Ace, Spades)
 	assert.PanicsWithValue(
 		t, "player's hand is not complete",
-		func() { CreateGame(hand, trumpCard, false, 0.7, time.Second) },
+		func() { CreateGame(hand, trumpCard, false) },
 	)
 }
 
@@ -45,12 +44,12 @@ func createSampleHand() Hand {
 func createSampleGame() Game {
 	hand := createSampleHand()
 	trumpCard := NewCard(Ten, Clubs)
-	return CreateGame(hand, trumpCard, true, 0.7, time.Second)
+	return CreateGame(hand, trumpCard, true)
 }
 
 func createSampleGameWithTrumpCard(trumpCard Card) Game {
 	hand := createSampleHand()
-	return CreateGame(hand, trumpCard, true, 0.7, time.Second)
+	return CreateGame(hand, trumpCard, true)
 }
 
 func TestUpdateOpponentMove(t *testing.T) {
@@ -557,23 +556,23 @@ func TestUpdateDrawnCardInvalidSituations(t *testing.T) {
 }
 
 func TestHelperFunctions(t *testing.T) {
-	t.Run("strongerCard", func(t *testing.T) {
+	t.Run("StrongerCard", func(t *testing.T) {
 		a := NewCard(Ace, Spades)
 		b := NewCard(Ten, Spades)
 		c := NewCard(King, Hearts)
 		d := NewCard(King, Diamonds)
 
-		assert.Equal(t, &a, strongerCard(&a, &b, Spades))
-		assert.Equal(t, &a, strongerCard(&b, &a, Spades))
+		assert.Equal(t, &a, StrongerCard(&a, &b, Spades))
+		assert.Equal(t, &a, StrongerCard(&b, &a, Spades))
 
-		assert.Equal(t, &a, strongerCard(&a, &b, Hearts))
-		assert.Equal(t, &a, strongerCard(&b, &a, Hearts))
+		assert.Equal(t, &a, StrongerCard(&a, &b, Hearts))
+		assert.Equal(t, &a, StrongerCard(&b, &a, Hearts))
 
-		assert.Equal(t, &c, strongerCard(&a, &c, Hearts))
-		assert.Equal(t, &c, strongerCard(&c, &a, Hearts))
+		assert.Equal(t, &c, StrongerCard(&a, &c, Hearts))
+		assert.Equal(t, &c, StrongerCard(&c, &a, Hearts))
 
-		assert.Equal(t, &a, strongerCard(&a, &d, Hearts))
-		assert.Equal(t, &d, strongerCard(&d, &a, Hearts))
+		assert.Equal(t, &a, StrongerCard(&a, &d, Hearts))
+		assert.Equal(t, &d, StrongerCard(&d, &a, Hearts))
 	})
 
 	t.Run("Points", func(t *testing.T) {

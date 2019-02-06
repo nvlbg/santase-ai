@@ -1,31 +1,37 @@
-package santase
+package santase_test
 
 import (
 	"fmt"
 	"time"
+
+	santase "github.com/nvlbg/santase-ai"
+	"github.com/nvlbg/santase-ai/agents/ismcts"
 )
 
 func ExampleGame() {
 	// create initial hand for the ai
-	hand := NewHand()
-	hand.AddCard(NewCard(Nine, Diamonds))
-	hand.AddCard(NewCard(King, Spades))
-	hand.AddCard(NewCard(Queen, Diamonds))
-	hand.AddCard(NewCard(Nine, Spades))
-	hand.AddCard(NewCard(Ace, Spades))
-	hand.AddCard(NewCard(Ten, Hearts))
+	hand := santase.NewHand()
+	hand.AddCard(santase.NewCard(santase.Nine, santase.Diamonds))
+	hand.AddCard(santase.NewCard(santase.King, santase.Spades))
+	hand.AddCard(santase.NewCard(santase.Queen, santase.Diamonds))
+	hand.AddCard(santase.NewCard(santase.Nine, santase.Spades))
+	hand.AddCard(santase.NewCard(santase.Ace, santase.Spades))
+	hand.AddCard(santase.NewCard(santase.Ten, santase.Hearts))
 
 	// create trump card for the game
-	trumpCard := NewCard(Ten, Clubs)
+	trumpCard := santase.NewCard(santase.Ten, santase.Clubs)
 
 	// is the opponent first to move
 	isOpponentMove := true
 
 	// create a game
-	game := CreateGame(hand, trumpCard, isOpponentMove, 0.7, time.Second)
+	game := santase.CreateGame(hand, trumpCard, isOpponentMove)
+
+	// specify which agent to use for choosing moves
+	game.SetAgent(ismcts.NewAgent(5.4, time.Second))
 
 	// update the game with the move the opponent makes
-	game.UpdateOpponentMove(Move{Card: NewCard(Nine, Hearts)})
+	game.UpdateOpponentMove(santase.Move{Card: santase.NewCard(santase.Nine, santase.Hearts)})
 
 	// start the AI
 	move := game.GetMove()
@@ -33,7 +39,7 @@ func ExampleGame() {
 	fmt.Println(move.Card)
 
 	// finish the first round by updating what card the AI draws
-	game.UpdateDrawnCard(NewCard(Jack, Hearts))
+	game.UpdateDrawnCard(santase.NewCard(santase.Jack, santase.Hearts))
 	// Output:
 	// 10♥
 }
