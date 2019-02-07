@@ -336,9 +336,7 @@ func (g *game) runSimulation() int {
 					}
 				}
 				if possibleResponses == nil {
-					for card := range hand {
-						possibleResponses = append(possibleResponses, card)
-					}
+					possibleResponses = hand.ToSlice()
 				}
 				card := possibleResponses[rand.Intn(len(possibleResponses))]
 				a = action{card: card}

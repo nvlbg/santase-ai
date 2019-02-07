@@ -103,6 +103,14 @@ func (h *Hand) Clone() Hand {
 	return hand
 }
 
+func (h *Hand) ToSlice() []Card {
+	result := make([]Card, 0, len(*h))
+	for card := range *h {
+		result = append(result, card)
+	}
+	return result
+}
+
 func (h *Hand) AddCard(c Card) {
 	if len(*h) == 6 {
 		panic("hand has 6 cards already")
