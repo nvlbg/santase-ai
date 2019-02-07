@@ -11,6 +11,7 @@ func getHiddenCards(hand Hand, trumpCard Card) Pile {
 	}
 	return remaining
 }
+
 func StrongerCard(a *Card, b *Card, trump Suit) *Card {
 	if a.Suit == b.Suit {
 		if a.Rank > b.Rank {
