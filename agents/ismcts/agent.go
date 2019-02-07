@@ -315,31 +315,8 @@ func (g *game) runSimulation() int {
 			if g.trumpCard != nil && !g.isClosed {
 				a = action{card: hand.GetRandomCard()}
 			} else {
-				var possibleResponses []santase.Card
-				for card := range hand {
-					if card.Suit == g.cardPlayed.Suit && card.Rank > g.cardPlayed.Rank {
-						possibleResponses = append(possibleResponses, card)
-					}
-				}
-				if possibleResponses == nil {
-					for card := range hand {
-						if card.Suit == g.cardPlayed.Suit {
-							possibleResponses = append(possibleResponses, card)
-						}
-					}
-				}
-				if possibleResponses == nil && g.cardPlayed.Suit != g.trump {
-					for card := range hand {
-						if card.Suit == g.trump {
-							possibleResponses = append(possibleResponses, card)
-						}
-					}
-				}
-				if possibleResponses == nil {
-					possibleResponses = hand.ToSlice()
-				}
-				card := possibleResponses[rand.Intn(len(possibleResponses))]
-				a = action{card: card}
+				possibleResponses := hand.GetValidResponses(*g.cardPlayed, g.trump)
+				a = action{card: possibleResponses.GetRandomCard()}
 			}
 		}
 		g.simulate(a)

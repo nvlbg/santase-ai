@@ -95,6 +95,23 @@ func NewHand(cards ...Card) Hand {
 	return result
 }
 
+func (h *Hand) AddCard(c Card) {
+	if len(*h) == 6 {
+		panic("hand has 6 cards already")
+	}
+
+	(*h)[c] = struct{}{}
+}
+
+func (h *Hand) HasCard(c Card) bool {
+	_, ok := (*h)[c]
+	return ok
+}
+
+func (h *Hand) RemoveCard(c Card) {
+	delete(*h, c)
+}
+
 func (h *Hand) Clone() Hand {
 	hand := NewHand()
 	for card := range *h {
@@ -111,21 +128,36 @@ func (h *Hand) ToSlice() []Card {
 	return result
 }
 
-func (h *Hand) AddCard(c Card) {
-	if len(*h) == 6 {
-		panic("hand has 6 cards already")
+func (h *Hand) GetValidResponses(played Card, trump Suit) Hand {
+	var allowedResponses []Card
+
+	for card := range *h {
+		if card.Suit == played.Suit && card.Rank > played.Rank {
+			allowedResponses = append(allowedResponses, card)
+		}
 	}
 
-	(*h)[c] = struct{}{}
-}
+	if allowedResponses == nil {
+		for card := range *h {
+			if card.Suit == played.Suit {
+				allowedResponses = append(allowedResponses, card)
+			}
+		}
+	}
 
-func (h *Hand) HasCard(c Card) bool {
-	_, ok := (*h)[c]
-	return ok
-}
+	if allowedResponses == nil && played.Suit != trump {
+		for card := range *h {
+			if card.Suit == trump {
+				allowedResponses = append(allowedResponses, card)
+			}
+		}
+	}
 
-func (h *Hand) RemoveCard(c Card) {
-	delete(*h, c)
+	if allowedResponses == nil {
+		return h.Clone()
+	}
+
+	return NewHand(allowedResponses...)
 }
 
 func (h *Hand) GetRandomCard() Card {

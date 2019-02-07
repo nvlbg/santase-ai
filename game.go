@@ -114,20 +114,98 @@ func (g *Game) GetMove() Move {
 	move := g.agent.GetMove(g)
 
 	if move.SwitchTrumpCard {
+		if g.cardPlayed != nil {
+			panic("cannot switch trump card when you're not first to play")
+		}
+
+		if len(g.seenCards) == 0 {
+			panic("cannot switch trump card on first move")
+		}
+
+		if len(g.seenCards) == 10 {
+			panic("cannot switch trump card with only two cards left in the stack")
+		}
+
+		if g.trumpCard == nil {
+			panic("cannot switch trump card after it has been taken")
+		}
+
+		if g.isClosed {
+			panic("cannot switch trump card after the game has been closed")
+		}
+
+		if !g.hand.HasCard(NewCard(Nine, g.trump)) {
+			panic("cannot switch trump card withouth nine of trump in hand")
+		}
+
 		g.hand.RemoveCard(NewCard(Nine, g.trump))
 		g.hand.AddCard(*g.trumpCard)
 		g.trumpCard.Rank = Nine
 	}
 
 	if move.CloseGame {
+		if g.cardPlayed != nil {
+			panic("cannot close game when second to move")
+		}
+
+		if len(g.seenCards) == 0 {
+			panic("cannot close game on first move")
+		}
+
+		if len(g.seenCards) == 10 {
+			panic("cannot close game with only two cards left in the stack")
+		}
+
+		if len(g.seenCards) >= 12 {
+			panic("cannot close game after all cards have been drawn")
+		}
+
+		if g.isClosed {
+			panic("cannot close game because it is already closed")
+		}
+
 		g.isClosed = true
 	}
 
 	if move.IsAnnouncement {
+		if g.cardPlayed != nil {
+			panic("cannot announce when you're not first to play")
+		}
+
+		if len(g.seenCards) == 0 {
+			panic("cannot announce on first move")
+		}
+
+		if move.Card.Rank != Queen && move.Card.Rank != King {
+			panic("invalid announcement card")
+		}
+
+		var other Card
+		if move.Card.Rank == Queen {
+			other = NewCard(King, move.Card.Suit)
+		} else {
+			other = NewCard(Queen, move.Card.Suit)
+		}
+
+		if !g.hand.HasCard(other) {
+			panic("invalid announcement - not both cards of announcement are in hand")
+		}
+
 		if move.Card.Suit == g.trump {
 			g.score += 40
 		} else {
 			g.score += 20
+		}
+	}
+
+	if !g.hand.HasCard(move.Card) {
+		panic("played card in not in hand")
+	}
+
+	if g.cardPlayed != nil && (g.isClosed || g.trumpCard == nil) {
+		possibleResponses := g.hand.GetValidResponses(*g.cardPlayed, g.trump)
+		if !possibleResponses.HasCard(move.Card) {
+			panic("invalid response card: " + move.Card.String())
 		}
 	}
 
@@ -242,6 +320,10 @@ func (g *Game) UpdateOpponentMove(opponentMove Move) {
 
 		if len(g.seenCards) == 0 {
 			panic("cannot announce on first move")
+		}
+
+		if opponentMove.Card.Rank != Queen && opponentMove.Card.Rank != King {
+			panic("invalid announcement card: " + opponentMove.Card.String())
 		}
 
 		var other Card
