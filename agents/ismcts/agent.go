@@ -1,3 +1,20 @@
+// Package ismcts provides an agent implemented using
+// Information Set Monte Carlo Tree Search (ISMCTS)
+//
+// ISMCTS[1] is an extenstion to the Monte Carlo Tree Search (MCTS)
+// algorithm for games of imperfect information, such as santase where
+// there are hidden cards.
+//
+// MCTS algorithms are anytime algorithms, meaning they can be ran for as
+// long as they are allowed and still give good results. Generally running
+// them for longer achieves better results.
+//
+// This package implements a parallelization technique on top of ISMCTS[2]
+// that will start as many goroutines as there are cores on the machine.
+//
+// [1] Peter I. Cowling, Edward Powley and Daniel Whitehouse, “Information Set Monte Carlo Tree Search” http://orangehelicopter.com/academic/papers/tciaig_ismcts.pdf
+//
+// [2] Nick Sephton, Peter I. Cowling, Edward Powley, and Daniel Whitehouse, “Parallelization of Information Set Monte Carlo Tree Search” https://www-users.cs.york.ac.uk/~nsephton/papers/wcci2014-ismcts-parallelization.pdf
 package ismcts
 
 import (
@@ -493,6 +510,8 @@ func toMove(game *santase.Game, bestAction action) santase.Move {
 	}
 }
 
+// SOISMCTS follows the pseudo code described in the paper
+// "Information Set Monte Carlo Tree Search"
 func (a *agent) SOISMCTS(game *santase.Game, results chan *node, quit chan struct{}) {
 	root := node{children: make(map[action]*node)}
 
@@ -529,6 +548,11 @@ loop:
 	results <- &root
 }
 
+// singleObserverInformationSetMCTS is a single threaded ISMCTS
+// implementation. It is equivalent with
+// singleObserverInformationSetMCTSRootParallelization if ran
+// on a machine with one cpu.
+// This version can be easier to debug.
 func (a *agent) singleObserverInformationSetMCTS(game *santase.Game) santase.Move {
 	results := make(chan *node)
 	quit := make(chan struct{})
@@ -554,6 +578,10 @@ func (a *agent) singleObserverInformationSetMCTS(game *santase.Game) santase.Mov
 	return toMove(game, bestAction)
 }
 
+// singleObserverInformationSetMCTSRootParallelization implements
+// ISMCTS with root parallelization as defined in the paper
+// "Parallelization of Information Set Monte Carlo Tree Search"
+// with as many workers as there are cores on the machine
 func (a *agent) singleObserverInformationSetMCTSRootParallelization(game *santase.Game) santase.Move {
 	results := make(chan *node)
 	quit := make(chan struct{})
@@ -598,6 +626,16 @@ func (a *agent) GetMove(game *santase.Game) santase.Move {
 	return a.singleObserverInformationSetMCTSRootParallelization(game)
 }
 
+// NewAgent creates a new ISMCTS agent.
+//
+// The first parameter c is a constant used in the algorithm
+// that balances exploitation and exploration
+// (https://en.wikipedia.org/wiki/Monte_Carlo_tree_search#Exploration_and_exploitation).
+// The choice of this parameter can affect playing strength.
+// A value around 5.4 works good.
+//
+// The second parameter timePerMove chooses the maximum time
+// per move the agent is allowed.
 func NewAgent(c float64, timePerMove time.Duration) santase.Agent {
 	return &agent{
 		c:           5.4,

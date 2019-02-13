@@ -43,3 +43,61 @@ func ExampleGame() {
 	// Output:
 	// 10♥
 }
+
+func ExampleNewHand() {
+	// constructs new empty hand
+	_ = santase.NewHand()
+
+	// constructs new hand with two cards
+	hand := santase.NewHand(
+		santase.NewCard(santase.Queen, santase.Hearts),
+		santase.NewCard(santase.King, santase.Hearts),
+	)
+
+	// the cards in a hand can be iterated like so
+	for card := range hand {
+		fmt.Println(card)
+	}
+
+	// Unordered output:
+	// Q♥
+	// K♥
+}
+
+func ExampleHand_GetValidResponses() {
+	hand := santase.NewHand(
+		santase.NewCard(santase.Nine, santase.Diamonds),
+		santase.NewCard(santase.King, santase.Spades),
+		santase.NewCard(santase.Queen, santase.Diamonds),
+		santase.NewCard(santase.Nine, santase.Spades),
+		santase.NewCard(santase.Ace, santase.Spades),
+		santase.NewCard(santase.Ten, santase.Hearts),
+	)
+
+	valid := hand.GetValidResponses(
+		santase.NewCard(santase.Queen, santase.Spades),
+		santase.Hearts,
+	)
+
+	fmt.Println(valid)
+
+	// Output:
+	// { K♠ A♠ }
+}
+
+func ExampleNewPile() {
+	// constructs new empty pile
+	pile := santase.NewPile()
+
+	pile.AddCard(santase.NewCard(santase.Queen, santase.Hearts))
+	pile.AddCard(santase.NewCard(santase.King, santase.Hearts))
+
+	// the cards in a pile can be iterated like so
+	for card := range pile {
+		fmt.Println(card)
+	}
+
+	// Unordered output:
+	// Q♥
+	// K♥
+}

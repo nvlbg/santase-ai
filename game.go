@@ -6,6 +6,9 @@ func (a dummyAgent) GetMove(g *Game) Move {
 	panic("no agent provided")
 }
 
+// Game is an instance of a game of santase.  In its state
+// in contains information for only what a player in the game
+// can see and deduce.
 type Game struct {
 	trump              Suit
 	score              int
@@ -21,6 +24,12 @@ type Game struct {
 	agent              Agent
 }
 
+// CreateGame creates a new instance of a Game given the
+// initial hand for the AI, the trump card on the table and
+// whether the opponent (from the point of view of the AI)
+// plays first.
+//
+// Panics if the hand does not have 6 cards.
 func CreateGame(hand Hand, trumpCard Card, isOpponentMove bool) Game {
 	if len(hand) != 6 {
 		panic("player's hand is not complete")
@@ -42,6 +51,9 @@ func CreateGame(hand Hand, trumpCard Card, isOpponentMove bool) Game {
 	}
 }
 
+// GetCardPlayed returns a pointer to the card placed on the
+// table by one of the players. If there is no card played
+// the result will be nil.
 func (g *Game) GetCardPlayed() *Card {
 	if g.cardPlayed == nil {
 		return nil
@@ -50,34 +62,47 @@ func (g *Game) GetCardPlayed() *Card {
 	return &card
 }
 
+// GetHand returns the hand of the AI player.
 func (g *Game) GetHand() Hand {
 	return g.hand.Clone()
 }
 
+// IsClosed returns if the game has been explicitly closed
+// by one of the players.
 func (g *Game) IsClosed() bool {
 	return g.isClosed
 }
 
+// IsOpponentMove returns if it is turn for the opponent
+// (from the point of view of the AI) to play next.
 func (g *Game) IsOpponentMove() bool {
 	return g.isOpponentMove
 }
 
+// GetKnownOpponentCards returns the cards in the opponent's
+// hand that have been deduced.
 func (g *Game) GetKnownOpponentCards() Hand {
 	return g.knownOpponentCards.Clone()
 }
 
+// GetScore returns the points that the AI player has collected.
 func (g *Game) GetScore() int {
 	return g.score
 }
 
+// GetOpponentScore returns the points that the opponent has
+// collected.
 func (g *Game) GetOpponentScore() int {
 	return g.opponentScore
 }
 
+// GetTrump returns the trump suit of the game.
 func (g *Game) GetTrump() Suit {
 	return g.trump
 }
 
+// GetTrumpCard returns a pointer to the trump card placed on the table.
+// If all cards have been drawn the result will be nil.
 func (g *Game) GetTrumpCard() *Card {
 	if g.trumpCard == nil {
 		return nil
@@ -86,22 +111,39 @@ func (g *Game) GetTrumpCard() *Card {
 	return &card
 }
 
+// GetSeenCards returns the set of cards that have been taken by one of
+// the players and cannot be played anymore in the game. If there is a
+// card placed on the table it will not be included here (see GetCardPlayed).
 func (g *Game) GetSeenCards() Pile {
 	return g.seenCards.Clone()
 }
 
+// GetUnseenCards returns the set of cards that are not yet deretmined
+// if they are in the opponent's hand or in the pile.
 func (g *Game) GetUnseenCards() Pile {
 	return g.unseenCards.Clone()
 }
 
+// SetAgent sets the Agent that will be used to choose the moves that
+// will be played by the AI. There is a random agent and a monte carlo
+// agent included in the library that can be used, or you can write your own.
 func (g *Game) SetAgent(agent Agent) {
 	g.agent = agent
 }
 
-func (g *Game) StrongerCard(a *Card, b *Card) *Card {
-	return StrongerCard(a, b, g.trump)
+// StrongerCard returns which of the two cards will be stronger in the
+// context of the game.
+func (g *Game) StrongerCard(first *Card, second *Card) *Card {
+	return StrongerCard(first, second, g.trump)
 }
 
+// GetMove returns the move that the AI agent chose to play. It should be
+// called only when it is the AI's turn to play, otherwise a panic will occur.
+// If there is a bug in the agent and it chooses an invalid move a panic will
+// occur as well.
+//
+// Note: the order of calls to GetMove, UpdateOpponentMove and
+// UpdateDrawnCard matters.
 func (g *Game) GetMove() Move {
 	if g.isOpponentMove {
 		panic("not AI's turn")
@@ -231,6 +273,11 @@ func (g *Game) GetMove() Move {
 	return move
 }
 
+// UpdateOpponentMove updates the game state with the move that the opponent
+// has played. If the move is invalid a panic will occur.
+//
+// Note: the order of calls to GetMove, UpdateOpponentMove and
+// UpdateDrawnCard matters.
 func (g *Game) UpdateOpponentMove(opponentMove Move) {
 	if !g.isOpponentMove {
 		panic("not opponent's turn")
@@ -375,6 +422,12 @@ func (g *Game) UpdateOpponentMove(opponentMove Move) {
 	}
 }
 
+// UpdateDrawnCard updates the game state with the card that the AI player
+// draws from the stack of cards after a move. If the drawn card is invalid
+// or it is not the time to draw cards a panic will occur.
+//
+// Note: the order of calls to GetMove, UpdateOpponentMove and
+// UpdateDrawnCard matters.
 func (g *Game) UpdateDrawnCard(card Card) {
 	if g.cardPlayed != nil {
 		panic("cannot draw cards in the middle of a play")

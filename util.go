@@ -12,23 +12,24 @@ func getHiddenCards(hand Hand, trumpCard Card) Pile {
 	return remaining
 }
 
-func StrongerCard(a *Card, b *Card, trump Suit) *Card {
-	if a.Suit == b.Suit {
-		if a.Rank > b.Rank {
-			return a
+// StrongerCard returns the stronger of two cards played in a game with a particular trump.
+func StrongerCard(first *Card, second *Card, trump Suit) *Card {
+	if first.Suit == second.Suit {
+		if first.Rank > second.Rank {
+			return first
 		}
-		return b
+		return second
 	}
 
-	if a.Suit == trump {
-		return a
+	if first.Suit == trump {
+		return first
 	}
 
-	if b.Suit == trump {
-		return b
+	if second.Suit == trump {
+		return second
 	}
 
-	return a
+	return first
 }
 
 var pointsMap = map[Rank]int{
@@ -40,6 +41,15 @@ var pointsMap = map[Rank]int{
 	Ace:   11,
 }
 
+// Points returns the value of a card depending on its rank.
+// The ranks are valued as follows:
+//
+//	Nine  = 0 points
+// 	Jack  = 2 points
+// 	Queen = 3 points
+// 	King  = 4 points
+// 	Ten   = 10 points
+// 	Ace   = 11 points
 func Points(c *Card) int {
 	if pts, ok := pointsMap[c.Rank]; ok {
 		return pts

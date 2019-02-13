@@ -1,3 +1,4 @@
+// Package random provides a random agent that always plays random valid move.
 package random
 
 import (
@@ -18,6 +19,7 @@ func (a *agent) GetMove(game *santase.Game) santase.Move {
 	}
 }
 
+// NewAgent creates a new random agent.
 func NewAgent() santase.Agent {
 	return &agent{}
 }
