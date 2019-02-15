@@ -3,7 +3,7 @@ santase-ai [![GoDoc](https://godoc.org/github.com/nvlbg/santase-ai?status.svg)](
 
 Santase-ai is an interface for different artificial
 intelligence agents for the game santase (also known as
-[sixty-six](https://en.wikipedia.org/wiki/Sixty-Six_(card_game\))).
+[sixty-six](https://en.wikipedia.org/wiki/Sixty-Six_(card_game))).
 It is useful in two cases:
 
 1. You need out of the box artificial intelligence agent for the game
